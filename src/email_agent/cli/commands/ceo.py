@@ -14,6 +14,9 @@ from collections import defaultdict
 
 from ...agents.ceo_assistant import CEOAssistantAgent
 from ...agents.action_extractor import ActionExtractorAgent
+from ...agents.enhanced_ceo_labeler import EnhancedCEOLabeler
+from ...agents.relationship_intelligence import RelationshipIntelligence
+from ...agents.thread_intelligence import ThreadIntelligence
 from ...storage.database import DatabaseManager
 from ...models import Email, EmailAddress, EmailCategory, EmailPriority
 from ...connectors.gmail_service import GmailService
@@ -50,6 +53,25 @@ def pull(days: int = typer.Option(90, "--days", "-d", help="Days back to pull em
          max_emails: int = typer.Option(1000, "--max-emails", "-m", help="Maximum emails to pull")):
     """Pull emails from Gmail for processing."""
     asyncio.run(_pull_emails(days, max_emails))
+
+
+@app.command()
+def intelligence(limit: int = typer.Option(200, "--limit", "-l", help="Number of emails to analyze"),
+               dry_run: bool = typer.Option(False, "--dry-run", help="Analyze without applying labels")):
+    """Apply enhanced CEO intelligence with relationship and thread analysis."""
+    asyncio.run(_apply_intelligence(limit, dry_run))
+
+
+@app.command()
+def relationships(limit: int = typer.Option(1000, "--limit", "-l", help="Number of emails to analyze")):
+    """Analyze relationship intelligence and show strategic contacts."""
+    asyncio.run(_analyze_relationships(limit))
+
+
+@app.command()
+def threads(limit: int = typer.Option(1000, "--limit", "-l", help="Number of emails to analyze")):
+    """Analyze thread intelligence and show conversation patterns."""
+    asyncio.run(_analyze_threads(limit))
 
 
 async def _setup_labels():
@@ -498,3 +520,309 @@ async def _pull_emails(days: int, max_emails: int):
     # proper pagination and batch processing as shown in the original pull_gmail_directly.py
     console.print("This command is not yet fully implemented in the CLI.")
     console.print("Use 'email-agent pull sync' for now.")
+
+
+async def _apply_intelligence(limit: int, dry_run: bool):
+    """Apply enhanced CEO intelligence with relationship and thread analysis."""
+    console.print(Panel.fit(
+        "[bold cyan]🧠 Enhanced CEO Intelligence System[/bold cyan]\n"
+        "[dim]Advanced email analysis with relationship intelligence[/dim]",
+        border_style="cyan"
+    ))
+    
+    # Initialize intelligence systems
+    enhanced_labeler = EnhancedCEOLabeler()
+    db = DatabaseManager()
+    
+    # Gmail setup
+    import keyring
+    from google.auth.transport.requests import Request
+    from google.oauth2.credentials import Credentials
+    from googleapiclient.discovery import build
+    
+    creds_json = keyring.get_password("email_agent", "gmail_credentials_default")
+    if not creds_json:
+        console.print("[red]❌ No Gmail credentials found.[/red]")
+        return
+    
+    creds_data = json.loads(creds_json)
+    creds = Credentials.from_authorized_user_info(creds_data, [
+        'https://www.googleapis.com/auth/gmail.readonly',
+        'https://www.googleapis.com/auth/gmail.modify'
+    ])
+    
+    if creds.expired and creds.refresh_token:
+        creds.refresh(Request())
+    
+    service = build('gmail', 'v1', credentials=creds)
+    
+    # Get emails for analysis
+    with db.get_session() as session:
+        from ...storage.models import EmailORM
+        
+        # Get larger dataset for intelligence building
+        all_emails_orm = session.query(EmailORM).order_by(
+            EmailORM.received_date.desc()
+        ).limit(1000).all()
+        
+        all_emails = []
+        for e in all_emails_orm:
+            email = Email(
+                id=e.id,
+                message_id=e.message_id,
+                thread_id=e.thread_id,
+                subject=e.subject,
+                sender=EmailAddress(email=e.sender_email, name=e.sender_name),
+                recipients=[],
+                date=e.date,
+                received_date=e.received_date,
+                body_text=e.body_text or '',
+                is_read=e.is_read,
+                is_flagged=e.is_flagged,
+                category=EmailCategory(e.category) if e.category else EmailCategory.PERSONAL,
+                priority=EmailPriority(e.priority) if e.priority else EmailPriority.NORMAL,
+                tags=json.loads(e.tags) if e.tags else []
+            )
+            all_emails.append(email)
+    
+    # Build intelligence profiles
+    await enhanced_labeler.build_sender_profiles(all_emails)
+    
+    # Get emails to process
+    emails_to_process = [email for email in all_emails[:limit] 
+                        if 'enhanced_ceo_labeled' not in email.tags]
+    
+    console.print(f"\n📧 Processing [yellow]{len(emails_to_process)}[/yellow] emails with enhanced intelligence\n")
+    
+    # Get Gmail label map
+    results = service.users().labels().list(userId='me').execute()
+    label_map = {label['name']: label['id'] for label in results.get('labels', [])}
+    
+    # Statistics
+    stats = defaultdict(int)
+    label_counts = defaultdict(int)
+    
+    # Process emails with enhanced intelligence
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TaskProgressColumn(),
+        console=console
+    ) as progress:
+        
+        task = progress.add_task("[cyan]Applying enhanced intelligence...", total=len(emails_to_process))
+        
+        for email in emails_to_process:
+            try:
+                # Get enhanced labels
+                labels, reason = await enhanced_labeler.get_enhanced_labels(email)
+                
+                if reason == "promotional/spam":
+                    stats['spam_filtered'] += 1
+                    progress.console.print(f"   🚫 [dim]{email.subject[:40]}... (filtered: promotional)[/dim]")
+                elif reason == "analysis_error":
+                    stats['errors'] += 1
+                elif labels:
+                    # Apply labels in Gmail (if not dry run)
+                    if not dry_run and email.message_id:
+                        try:
+                            msg_id = email.message_id.strip('<>')
+                            query = f'rfc822msgid:{msg_id}'
+                            results = service.users().messages().list(userId='me', q=query).execute()
+                            
+                            if results.get('messages'):
+                                gmail_msg_id = results['messages'][0]['id']
+                                
+                                labels_to_add = []
+                                for label_name in labels:
+                                    full_label = f'EmailAgent/CEO/{label_name}'
+                                    if full_label in label_map:
+                                        labels_to_add.append(label_map[full_label])
+                                        label_counts[label_name] += 1
+                                
+                                if labels_to_add:
+                                    body = {'addLabelIds': labels_to_add}
+                                    service.users().messages().modify(
+                                        userId='me', id=gmail_msg_id, body=body
+                                    ).execute()
+                                    stats['labeled'] += 1
+                        except:
+                            stats['gmail_errors'] += 1
+                    
+                    # Show intelligent insights
+                    sender_profile = enhanced_labeler.sender_profiles.get(email.sender.email.lower())
+                    importance = sender_profile.strategic_importance if sender_profile else 'unknown'
+                    color = {'critical': 'red', 'high': 'yellow', 'medium': 'cyan', 'low': 'dim'}.get(importance, 'white')
+                    label_str = ', '.join(labels)
+                    progress.console.print(f"   {'🔍' if dry_run else '🧠'} [{color}]{importance.upper()}[/{color}] {email.subject[:35]}... → [green]{label_str}[/green]")
+                    
+                    stats['processed'] += 1
+                else:
+                    stats['skipped'] += 1
+                
+            except Exception as e:
+                stats['errors'] += 1
+                console.print(f"[red]Error: {str(e)[:50]}[/red]")
+            
+            progress.advance(task)
+    
+    # Display results
+    console.print(f"\n[bold green]✅ Enhanced Intelligence Processing Complete![/bold green]\n")
+    
+    console.print("[bold]📊 Enhanced Results:[/bold]")
+    console.print(f"  • Processed with intelligence: {stats['processed']}")
+    console.print(f"  • Spam/promotional filtered: [yellow]{stats['spam_filtered']}[/yellow]")
+    if not dry_run:
+        console.print(f"  • Successfully labeled: [green]{stats['labeled']}[/green]")
+    console.print(f"  • Errors: [red]{stats['errors']}[/red]")
+    
+    if label_counts:
+        console.print("\n[bold]🏷️  Intelligent Label Distribution:[/bold]")
+        sorted_labels = sorted(label_counts.items(), key=lambda x: x[1], reverse=True)
+        for label, count in sorted_labels[:10]:
+            bar = "█" * min(count // 2, 20)
+            console.print(f"  {label:<20} {bar} {count}")
+
+
+async def _analyze_relationships(limit: int):
+    """Analyze relationship intelligence."""
+    console.print(Panel.fit(
+        "[bold cyan]🤝 Relationship Intelligence Analysis[/bold cyan]",
+        border_style="cyan"
+    ))
+    
+    # Initialize relationship intelligence
+    relationship_intel = RelationshipIntelligence()
+    db = DatabaseManager()
+    
+    # Get emails for analysis
+    with db.get_session() as session:
+        from ...storage.models import EmailORM
+        
+        emails_orm = session.query(EmailORM).order_by(
+            EmailORM.received_date.desc()
+        ).limit(limit).all()
+        
+        emails = []
+        for e in emails_orm:
+            email = Email(
+                id=e.id,
+                message_id=e.message_id,
+                thread_id=e.thread_id,
+                subject=e.subject,
+                sender=EmailAddress(email=e.sender_email, name=e.sender_name),
+                recipients=[],
+                date=e.date,
+                received_date=e.received_date,
+                body_text=e.body_text or '',
+                is_read=e.is_read,
+                is_flagged=e.is_flagged,
+                category=EmailCategory(e.category) if e.category else EmailCategory.PERSONAL,
+                priority=EmailPriority(e.priority) if e.priority else EmailPriority.NORMAL,
+                tags=json.loads(e.tags) if e.tags else []
+            )
+            emails.append(email)
+    
+    # Analyze relationships
+    analysis_results = await relationship_intel.analyze_relationships(emails)
+    
+    # Display results
+    console.print(f"\n[bold]📊 Relationship Analysis Results:[/bold]")
+    console.print(f"  • Total contacts analyzed: {analysis_results['total_contacts']}")
+    console.print(f"  • Strategic contacts identified: [yellow]{analysis_results['strategic_contacts']}[/yellow]")
+    
+    insights = analysis_results['relationship_insights']
+    
+    # Strategic contacts table
+    if insights['top_strategic_contacts']:
+        console.print("\n[bold]🎯 Top Strategic Contacts:[/bold]")
+        strategic_table = Table(show_header=True, header_style="bold cyan")
+        strategic_table.add_column("Contact", style="cyan", width=25)
+        strategic_table.add_column("Company", style="yellow", width=20)
+        strategic_table.add_column("Type", style="green")
+        strategic_table.add_column("Priority", justify="center")
+        strategic_table.add_column("Recent Activity", justify="center")
+        
+        for contact in insights['top_strategic_contacts'][:10]:
+            strategic_table.add_row(
+                contact.name or contact.email.split('@')[0],
+                contact.company or 'Unknown',
+                contact.relationship_type.title(),
+                str(contact.escalation_priority),
+                str(contact.recent_interactions)
+            )
+        
+        console.print(strategic_table)
+
+
+async def _analyze_threads(limit: int):
+    """Analyze thread intelligence."""
+    console.print(Panel.fit(
+        "[bold cyan]🧵 Thread Intelligence Analysis[/bold cyan]",
+        border_style="cyan"
+    ))
+    
+    # Initialize thread intelligence
+    thread_intel = ThreadIntelligence()
+    db = DatabaseManager()
+    
+    # Get emails for analysis
+    with db.get_session() as session:
+        from ...storage.models import EmailORM
+        
+        emails_orm = session.query(EmailORM).order_by(
+            EmailORM.received_date.desc()
+        ).limit(limit).all()
+        
+        emails = []
+        for e in emails_orm:
+            email = Email(
+                id=e.id,
+                message_id=e.message_id,
+                thread_id=e.thread_id,
+                subject=e.subject,
+                sender=EmailAddress(email=e.sender_email, name=e.sender_name),
+                recipients=[],
+                date=e.date,
+                received_date=e.received_date,
+                body_text=e.body_text or '',
+                is_read=e.is_read,
+                is_flagged=e.is_flagged,
+                category=EmailCategory(e.category) if e.category else EmailCategory.PERSONAL,
+                priority=EmailPriority(e.priority) if e.priority else EmailPriority.NORMAL,
+                tags=json.loads(e.tags) if e.tags else []
+            )
+            emails.append(email)
+    
+    # Analyze thread patterns
+    analysis_results = await thread_intel.analyze_thread_patterns(emails)
+    
+    # Display results
+    console.print(f"\n[bold]📊 Thread Analysis Results:[/bold]")
+    console.print(f"  • Total threads: {analysis_results['total_threads']}")
+    console.print(f"  • Active threads: [green]{analysis_results['active_threads']}[/green]")
+    console.print(f"  • Critical threads: [red]{analysis_results['critical_threads']}[/red]")
+    console.print(f"  • Stalled threads: [yellow]{analysis_results['stalled_threads']}[/yellow]")
+    
+    insights = analysis_results['thread_insights']
+    
+    # Critical threads requiring attention
+    if insights['stalled_important_threads']:
+        console.print("\n[bold red]🚨 Stalled Important Threads:[/bold red]")
+        stalled_table = Table(show_header=True, header_style="bold red")
+        stalled_table.add_column("Thread", style="red", width=40)
+        stalled_table.add_column("Type", style="yellow")
+        stalled_table.add_column("Days", justify="center")
+        stalled_table.add_column("Messages", justify="center")
+        
+        for thread in insights['stalled_important_threads'][:10]:
+            subject = thread.subject_evolution[0] if thread.subject_evolution else "Unknown"
+            stalled_table.add_row(
+                subject[:35] + "..." if len(subject) > 35 else subject,
+                thread.thread_type.title(),
+                str(thread.thread_duration_days),
+                str(thread.message_count)
+            )
+        
+        console.print(stalled_table)

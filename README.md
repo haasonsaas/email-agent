@@ -12,6 +12,13 @@ A comprehensive CLI Email Agent with AI-powered multi-agent orchestration for in
 - **Thread Summarization**: AI-powered thread analysis with insights
 - **Learning System**: Learns from user feedback to improve decisions
 
+### 🏢 CEO Intelligence System
+- **Enhanced Labeling**: Advanced spam filtering with sender reputation scoring
+- **Relationship Intelligence**: Strategic contact profiling (board, investors, customers)
+- **Thread Continuity**: Conversation tracking with context-aware labeling
+- **Auto-Escalation**: VIP contact priority handling with smart routing
+- **Strategic Analysis**: Board member and investor communication prioritization
+
 ### 📧 Email Connectors
 - **Gmail Integration**: Full Gmail API support with OAuth2
 - **IMAP Support**: Universal IMAP connector for any email provider
@@ -117,6 +124,27 @@ email-agent thread-summary --insights --overview
 
 # View smart inbox with AI triage
 email-agent smart-inbox --limit 50
+```
+
+### 🏢 CEO Intelligence Commands
+```bash
+# Setup CEO label system in Gmail
+email-agent ceo setup
+
+# Apply basic CEO labeling
+email-agent ceo label --limit 200
+
+# Enhanced intelligence with relationship analysis
+email-agent ceo intelligence --limit 100 --dry-run
+
+# Analyze strategic relationships
+email-agent ceo relationships --limit 1000
+
+# Thread continuity analysis
+email-agent ceo threads --limit 500
+
+# View CEO email insights
+email-agent ceo analyze
 ```
 
 ### Commitment & Task Management
