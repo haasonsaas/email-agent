@@ -1,5 +1,5 @@
-"""Email Agent - CLI tool for triaging and summarizing high-volume inboxes."""
+"""Email Agent - AI-powered email management system with multi-agent intelligence."""
 
-__version__ = "0.1.0"
-__author__ = "Jonathan Haas"
-__email__ = "jonathan@example.com"
+from .__version__ import __version__, __author__, __email__, __description__
+
+__all__ = ["__version__", "__author__", "__email__", "__description__"]
