@@ -41,6 +41,7 @@ app.add_typer(rules.app, name="rule", help="Manage categorization rules")
 app.add_typer(categories.app, name="cat", help="View and manage email categories")
 app.add_typer(config.app, name="config", help="Manage configuration and connectors")
 app.add_typer(status.app, name="status", help="View system status and statistics")
+app.add_typer(inbox.app, name="inbox", help="Smart inbox and AI triage management")
 app.add_typer(drafts_group, name="drafts", help="AI-powered draft suggestions and writing style analysis")
 
 

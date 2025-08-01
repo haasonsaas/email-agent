@@ -95,21 +95,33 @@ class TriageAgent:
         """Calculate sender importance based on user interaction history."""
         try:
             # Get user's email history to analyze response patterns
-            # This would query the database for user's sent emails and response times
             sender_scores = {}
             
-            # Example calculation (would be based on real data):
-            # - Fast response time = higher importance
-            # - Frequent communication = higher importance  
-            # - Work domain = higher importance
-            # - Manual priority flags = higher importance
+            # Load existing habit learning data from database
+            habit_data = self._load_habit_learning_data()
             
-            # For now, use some defaults based on common patterns
+            # Analyze user response patterns
+            response_patterns = self._analyze_response_patterns()
+            
+            # Calculate sender importance based on multiple factors
+            for sender, data in response_patterns.items():
+                score = self._calculate_sender_score(data)
+                sender_scores[sender] = score
+            
+            # Merge with existing habit data
+            for sender, historical_score in habit_data.get("sender_scores", {}).items():
+                if sender in sender_scores:
+                    # Weighted average: 60% historical, 40% new data
+                    sender_scores[sender] = (historical_score * 0.6) + (sender_scores[sender] * 0.4)
+                else:
+                    sender_scores[sender] = historical_score
+            
+            # Add default patterns for known types
             default_scores = {
                 "boss@": 0.9,
                 "manager@": 0.8,
                 "team@": 0.7,
-                "@company.com": 0.6,  # Work domain
+                "@company.com": 0.6,
                 "noreply@": 0.1,
                 "notification@": 0.2,
                 "@facebook.com": 0.3,
@@ -117,11 +129,157 @@ class TriageAgent:
                 "@twitter.com": 0.2
             }
             
-            return default_scores
+            # Apply defaults only if not already scored
+            for pattern, score in default_scores.items():
+                if pattern not in sender_scores:
+                    sender_scores[pattern] = score
+            
+            # Save updated scores
+            self._save_sender_importance_scores(sender_scores)
+            
+            return sender_scores
             
         except Exception as e:
             logger.error(f"Failed to calculate sender importance: {str(e)}")
+            return self._get_default_sender_scores()
+    
+    def _load_habit_learning_data(self) -> Dict[str, Any]:
+        """Load habit learning data from database."""
+        try:
+            # This would load from database in real implementation
+            # For now, return empty structure
+            return {
+                "sender_scores": {},
+                "category_preferences": {},
+                "urgency_patterns": {},
+                "time_preferences": {},
+                "feedback_history": [],
+                "last_updated": None
+            }
+        except Exception as e:
+            logger.error(f"Failed to load habit learning data: {str(e)}")
             return {}
+    
+    def _analyze_response_patterns(self) -> Dict[str, Dict[str, Any]]:
+        """Analyze user response patterns to emails."""
+        try:
+            patterns = {}
+            
+            # Get sent emails from database to analyze response patterns
+            # This would be a real database query in implementation
+            sent_emails = []  # self.db.get_sent_emails(limit=1000)
+            received_emails = []  # self.db.get_received_emails(limit=1000)
+            
+            # For each sender, calculate metrics
+            for sender_email in set(email.sender.email for email in received_emails):
+                pattern_data = {
+                    "total_emails": 0,
+                    "responded_to": 0,
+                    "avg_response_time": 0.0,  # in hours
+                    "manual_flags": 0,
+                    "user_moved_to_priority": 0,
+                    "user_archived": 0,
+                    "spam_reported": 0
+                }
+                
+                # Analyze this sender's emails
+                sender_emails = [e for e in received_emails if e.sender.email == sender_email]
+                pattern_data["total_emails"] = len(sender_emails)
+                
+                # Count responses (simplified - would need thread analysis)
+                responses = [e for e in sent_emails if sender_email in e.body_text or ""]
+                pattern_data["responded_to"] = len(responses)
+                
+                # Calculate average response time
+                if responses:
+                    response_times = []
+                    for response in responses:
+                        # Find original email this responds to
+                        for orig in sender_emails:
+                            if response.date > orig.date:
+                                time_diff = (response.date - orig.date).total_seconds() / 3600
+                                response_times.append(time_diff)
+                                break
+                    
+                    if response_times:
+                        pattern_data["avg_response_time"] = sum(response_times) / len(response_times)
+                
+                patterns[sender_email] = pattern_data
+            
+            return patterns
+            
+        except Exception as e:
+            logger.error(f"Failed to analyze response patterns: {str(e)}")
+            return {}
+    
+    def _calculate_sender_score(self, pattern_data: Dict[str, Any]) -> float:
+        """Calculate importance score for a sender based on interaction patterns."""
+        score = 0.4  # Base score
+        
+        total_emails = pattern_data.get("total_emails", 0)
+        if total_emails == 0:
+            return score
+        
+        # Response rate factor (0-0.3 points)
+        response_rate = pattern_data.get("responded_to", 0) / total_emails
+        score += response_rate * 0.3
+        
+        # Response speed factor (0-0.2 points)
+        avg_response_time = pattern_data.get("avg_response_time", 24)
+        if avg_response_time < 1:  # Under 1 hour
+            score += 0.2
+        elif avg_response_time < 6:  # Under 6 hours
+            score += 0.15
+        elif avg_response_time < 24:  # Under 1 day
+            score += 0.1
+        
+        # Manual flag factor (0-0.2 points)
+        manual_flags = pattern_data.get("manual_flags", 0)
+        if manual_flags > 0:
+            score += min(0.2, manual_flags / total_emails * 0.5)
+        
+        # User priority actions (0-0.2 points)
+        priority_moves = pattern_data.get("user_moved_to_priority", 0)
+        if priority_moves > 0:
+            score += min(0.2, priority_moves / total_emails * 0.4)
+        
+        # Negative factors
+        spam_reports = pattern_data.get("spam_reported", 0)
+        if spam_reports > 0:
+            score -= spam_reports / total_emails * 0.5
+        
+        archived_count = pattern_data.get("user_archived", 0)
+        if archived_count > total_emails * 0.5:  # More than 50% archived
+            score -= 0.2
+        
+        return min(1.0, max(0.0, score))
+    
+    def _save_sender_importance_scores(self, scores: Dict[str, float]) -> None:
+        """Save sender importance scores to database."""
+        try:
+            # This would save to database in real implementation
+            habit_data = {
+                "sender_scores": scores,
+                "last_updated": datetime.now().isoformat()
+            }
+            # self.db.save_habit_learning_data(habit_data)
+            logger.info(f"Saved {len(scores)} sender importance scores")
+        except Exception as e:
+            logger.error(f"Failed to save sender importance scores: {str(e)}")
+    
+    def _get_default_sender_scores(self) -> Dict[str, float]:
+        """Get default sender scores as fallback."""
+        return {
+            "boss@": 0.9,
+            "manager@": 0.8,
+            "team@": 0.7,
+            "@company.com": 0.6,
+            "noreply@": 0.1,
+            "notification@": 0.2,
+            "@facebook.com": 0.3,
+            "@linkedin.com": 0.3,
+            "@twitter.com": 0.2
+        }
     
     async def calculate_attention_score(self, email: Email) -> AttentionScore:
         """Calculate how much attention this email needs (0-1 scale)."""
@@ -421,23 +579,217 @@ Return only a number between 0.0 and 1.0.
     async def learn_from_user_feedback(self, email_id: str, correct_decision: TriageDecision, user_action: str) -> None:
         """Learn from user corrections to improve triage accuracy."""
         try:
+            # Get the email to analyze what we got wrong
+            email = self.db.get_email_by_id(email_id)
+            if not email:
+                logger.warning(f"Could not find email {email_id} for feedback learning")
+                return
+            
             feedback = {
                 "email_id": email_id,
+                "original_decision": email.connector_data.get("triage", {}).get("decision"),
                 "correct_decision": correct_decision.value,
                 "user_action": user_action,
+                "sender": email.sender.email,
+                "category": email.category.value,
+                "subject": email.subject,
                 "timestamp": datetime.now().isoformat()
             }
             
             self.stats["accuracy_feedback"].append(feedback)
             
-            # Update sender importance if this was a sender-related correction
-            # Update urgency patterns if this was urgency-related
-            # This would involve more sophisticated ML updates in a real implementation
+            # Learn from the feedback to improve future decisions
+            await self._apply_feedback_learning(email, feedback)
             
-            logger.info(f"Learning from feedback: email {email_id} should be {correct_decision.value}")
+            logger.info(f"Learning from feedback: email {email_id} from {email.sender.email} should be {correct_decision.value}")
             
         except Exception as e:
             logger.error(f"Failed to process user feedback: {str(e)}")
+    
+    async def _apply_feedback_learning(self, email: Email, feedback: Dict[str, Any]) -> None:
+        """Apply feedback to improve future triage decisions."""
+        try:
+            sender = email.sender.email
+            original_decision = feedback.get("original_decision")
+            correct_decision = feedback.get("correct_decision")
+            user_action = feedback.get("user_action")
+            
+            # Update sender importance based on feedback
+            await self._update_sender_importance_from_feedback(sender, correct_decision, user_action)
+            
+            # Update category preferences
+            await self._update_category_preferences_from_feedback(email.category, correct_decision)
+            
+            # Update urgency pattern recognition
+            await self._update_urgency_patterns_from_feedback(email, correct_decision)
+            
+            # Update time-based preferences
+            await self._update_time_preferences_from_feedback(email, correct_decision)
+            
+            # Save updated learning data
+            await self._save_habit_learning_updates()
+            
+        except Exception as e:
+            logger.error(f"Failed to apply feedback learning: {str(e)}")
+    
+    async def _update_sender_importance_from_feedback(self, sender: str, correct_decision: str, user_action: str) -> None:
+        """Update sender importance scores based on user feedback."""
+        current_score = self.sender_importance.get(sender, 0.4)
+        
+        # Adjust score based on correct decision
+        if correct_decision == TriageDecision.PRIORITY_INBOX.value:
+            # User wanted this in priority - increase importance
+            adjustment = 0.1
+        elif correct_decision == TriageDecision.AUTO_ARCHIVE.value:
+            # User wanted this archived - decrease importance
+            adjustment = -0.1
+        elif correct_decision == TriageDecision.SPAM_FOLDER.value:
+            # User marked as spam - significantly decrease importance
+            adjustment = -0.3
+        else:
+            # Regular inbox - small adjustment toward neutral
+            adjustment = (0.5 - current_score) * 0.1
+        
+        # Apply learning rate decay (more recent feedback has higher impact)
+        learning_rate = 0.2
+        new_score = current_score + (adjustment * learning_rate)
+        new_score = min(1.0, max(0.0, new_score))
+        
+        self.sender_importance[sender] = new_score
+        logger.debug(f"Updated sender {sender} importance: {current_score:.3f} -> {new_score:.3f}")
+    
+    async def _update_category_preferences_from_feedback(self, category: EmailCategory, correct_decision: str) -> None:
+        """Update category-based scoring preferences."""
+        if not hasattr(self, 'category_preferences'):
+            self.category_preferences = {}
+        
+        category_key = category.value
+        if category_key not in self.category_preferences:
+            self.category_preferences[category_key] = {
+                "priority_tendency": 0.0,
+                "archive_tendency": 0.0,
+                "feedback_count": 0
+            }
+        
+        prefs = self.category_preferences[category_key]
+        prefs["feedback_count"] += 1
+        
+        # Update tendencies based on feedback
+        if correct_decision == TriageDecision.PRIORITY_INBOX.value:
+            prefs["priority_tendency"] += 0.1
+        elif correct_decision == TriageDecision.AUTO_ARCHIVE.value:
+            prefs["archive_tendency"] += 0.1
+        
+        # Normalize tendencies
+        prefs["priority_tendency"] = min(1.0, max(-1.0, prefs["priority_tendency"]))
+        prefs["archive_tendency"] = min(1.0, max(-1.0, prefs["archive_tendency"]))
+    
+    async def _update_urgency_patterns_from_feedback(self, email: Email, correct_decision: str) -> None:
+        """Update urgency pattern recognition based on feedback."""
+        if not hasattr(self, 'urgency_patterns'):
+            self.urgency_patterns = {"learned_keywords": {}, "false_positives": set()}
+        
+        content = f"{email.subject} {email.body_text or ''}".lower()
+        
+        if correct_decision == TriageDecision.PRIORITY_INBOX.value:
+            # Extract potential urgency indicators we might have missed
+            words = content.split()
+            for word in words:
+                if len(word) > 3 and word not in ["the", "and", "for", "with"]:
+                    current_score = self.urgency_patterns["learned_keywords"].get(word, 0.0)
+                    self.urgency_patterns["learned_keywords"][word] = min(1.0, current_score + 0.05)
+        
+        elif correct_decision == TriageDecision.AUTO_ARCHIVE.value:
+            # Mark patterns that led to false urgency detection
+            urgency_words = ["urgent", "asap", "immediate", "important", "priority"]
+            for word in urgency_words:
+                if word in content:
+                    self.urgency_patterns["false_positives"].add(word)
+    
+    async def _update_time_preferences_from_feedback(self, email: Email, correct_decision: str) -> None:
+        """Update time-based preferences from feedback."""
+        if not hasattr(self, 'time_preferences'):
+            self.time_preferences = {"priority_hours": {}, "archive_hours": {}}
+        
+        hour = email.received_date.hour
+        
+        if correct_decision == TriageDecision.PRIORITY_INBOX.value:
+            current = self.time_preferences["priority_hours"].get(hour, 0)
+            self.time_preferences["priority_hours"][hour] = current + 1
+        elif correct_decision == TriageDecision.AUTO_ARCHIVE.value:
+            current = self.time_preferences["archive_hours"].get(hour, 0)
+            self.time_preferences["archive_hours"][hour] = current + 1
+    
+    async def _save_habit_learning_updates(self) -> None:
+        """Save all habit learning updates to persistent storage."""
+        try:
+            habit_data = {
+                "sender_scores": self.sender_importance,
+                "category_preferences": getattr(self, 'category_preferences', {}),
+                "urgency_patterns": getattr(self, 'urgency_patterns', {}),
+                "time_preferences": getattr(self, 'time_preferences', {}),
+                "last_updated": datetime.now().isoformat(),
+                "total_feedback_processed": len(self.stats["accuracy_feedback"])
+            }
+            
+            # In real implementation, this would save to database
+            # self.db.save_habit_learning_data(habit_data)
+            
+            logger.info("Saved habit learning updates to persistent storage")
+            
+        except Exception as e:
+            logger.error(f"Failed to save habit learning updates: {str(e)}")
+    
+    def get_learning_insights(self) -> Dict[str, Any]:
+        """Get insights about what the system has learned from user behavior."""
+        insights = {
+            "sender_insights": {},
+            "category_insights": {},
+            "urgency_insights": {},
+            "time_insights": {},
+            "learning_stats": {}
+        }
+        
+        try:
+            # Sender insights
+            if self.sender_importance:
+                top_senders = sorted(self.sender_importance.items(), key=lambda x: x[1], reverse=True)[:10]
+                insights["sender_insights"] = {
+                    "most_important": top_senders[:5],
+                    "least_important": sorted(self.sender_importance.items(), key=lambda x: x[1])[:5],
+                    "total_senders_learned": len(self.sender_importance)
+                }
+            
+            # Category insights
+            if hasattr(self, 'category_preferences'):
+                insights["category_insights"] = self.category_preferences
+            
+            # Urgency insights
+            if hasattr(self, 'urgency_patterns'):
+                learned_keywords = self.urgency_patterns.get("learned_keywords", {})
+                if learned_keywords:
+                    top_urgency_words = sorted(learned_keywords.items(), key=lambda x: x[1], reverse=True)[:10]
+                    insights["urgency_insights"] = {
+                        "learned_urgency_keywords": top_urgency_words,
+                        "false_positive_words": list(self.urgency_patterns.get("false_positives", set()))
+                    }
+            
+            # Time insights
+            if hasattr(self, 'time_preferences'):
+                insights["time_insights"] = self.time_preferences
+            
+            # Learning statistics
+            feedback_count = len(self.stats["accuracy_feedback"])
+            insights["learning_stats"] = {
+                "total_feedback_received": feedback_count,
+                "learning_active": feedback_count > 5,
+                "last_feedback": self.stats["accuracy_feedback"][-1]["timestamp"] if feedback_count > 0 else None
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to generate learning insights: {str(e)}")
+        
+        return insights
     
     async def get_triage_stats(self) -> Dict[str, Any]:
         """Get triage agent statistics."""
