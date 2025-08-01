@@ -16,7 +16,7 @@ from ..config import settings
 from ..storage import DatabaseManager
 from ..agents import EmailAgentCrew
 from ..models import ConnectorConfig, EmailCategory
-from .commands import init, pull, brief, rules, categories, config, status
+from .commands import init, pull, brief, rules, categories, config, status, inbox
 
 # Setup logging
 logging.basicConfig(level=getattr(logging, settings.log_level.upper()))
@@ -240,6 +240,34 @@ def parse_time_string(time_str: str) -> datetime:
     
     # Default fallback
     return datetime.now() - timedelta(days=1)
+
+
+@app.command()
+def smart_inbox(
+    limit: int = typer.Option(50, help="Maximum number of emails to process"),
+    days: int = typer.Option(7, help="Number of days to look back"),
+    show_scores: bool = typer.Option(False, "--scores", help="Show attention scores")
+):
+    """Create smart inbox with AI-powered triage."""
+    from .commands.inbox import _smart_inbox
+    asyncio.run(_smart_inbox(limit, days, show_scores, True))
+
+
+@app.command()
+def priority_inbox(
+    limit: int = typer.Option(20, help="Maximum number of priority emails to show"),
+    min_score: float = typer.Option(0.7, help="Minimum attention score for priority")
+):
+    """Show priority inbox - emails that need immediate attention."""
+    from .commands.inbox import _priority_inbox
+    asyncio.run(_priority_inbox(limit, min_score))
+
+
+@app.command()
+def triage_stats():
+    """Show triage statistics and performance metrics."""
+    from .commands.inbox import _triage_stats
+    asyncio.run(_triage_stats())
 
 
 if __name__ == "__main__":

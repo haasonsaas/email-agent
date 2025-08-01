@@ -16,6 +16,7 @@ from .categorizer import CategorizerAgent
 from .summarizer import SummarizerAgent
 from .sentiment_analyzer import SentimentAnalyzer
 from .thread_analyzer import ThreadAnalyzer
+from .triage_agent import TriageAgent
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +33,7 @@ class EmailAgentCrew(BaseCrewAdapter):
         self.summarizer_agent: SummarizerAgent = SummarizerAgent()
         self.sentiment_analyzer: SentimentAnalyzer = SentimentAnalyzer()
         self.thread_analyzer: ThreadAnalyzer = ThreadAnalyzer()
+        self.triage_agent: TriageAgent = TriageAgent()
     
     async def initialize_crew(self, agents_config: Dict[str, Any]) -> None:
         """Initialize the agent crew with configuration."""
@@ -107,6 +109,10 @@ class EmailAgentCrew(BaseCrewAdapter):
                 return await self._execute_thread_analysis_task(**kwargs)
             elif task_name == "comprehensive_analysis":
                 return await self._execute_comprehensive_analysis_task(**kwargs)
+            elif task_name == "triage_emails":
+                return await self._execute_triage_task(**kwargs)
+            elif task_name == "smart_inbox":
+                return await self._execute_smart_inbox_task(**kwargs)
             else:
                 raise AgentError(f"Unknown task: {task_name}")
                 
@@ -355,6 +361,57 @@ class EmailAgentCrew(BaseCrewAdapter):
         logger.info("Comprehensive analysis completed")
         return comprehensive_data
     
+    async def _execute_triage_task(self, **kwargs) -> Dict[str, Any]:
+        """Execute email triage task."""
+        emails = kwargs.get('emails', [])
+        
+        if not emails:
+            return {"error": "No emails provided for triage"}
+        
+        # Create triage task
+        task = Task(
+            description=f"Triage {len(emails)} emails for attention scoring and routing",
+            agent=self.agents.get("categorizer"),  # Use categorizer agent for CrewAI
+            expected_output="Emails grouped by triage decision with attention scores"
+        )
+        
+        # Execute triage using our custom agent logic
+        triage_results = await self.triage_agent.process_email_batch(emails)
+        
+        logger.info(f"Triaged {len(emails)} emails into {len(triage_results)} groups")
+        return triage_results
+    
+    async def _execute_smart_inbox_task(self, **kwargs) -> Dict[str, Any]:
+        """Execute smart inbox creation task."""
+        emails = kwargs.get('emails', [])
+        
+        if not emails:
+            return {"priority_inbox": [], "regular_inbox": [], "archived": []}
+        
+        # First categorize emails
+        categorized_emails = await self._execute_categorization_task(emails=emails, rules=kwargs.get('rules', []))
+        
+        # Then triage them
+        triage_results = await self._execute_triage_task(emails=categorized_emails)
+        
+        # Create smart inbox structure
+        smart_inbox = {
+            "priority_inbox": triage_results.get("priority_inbox", []),
+            "regular_inbox": triage_results.get("regular_inbox", []),
+            "auto_archived": triage_results.get("auto_archive", []),
+            "spam": triage_results.get("spam_folder", []),
+            "stats": {
+                "total_emails": len(emails),
+                "priority_count": len(triage_results.get("priority_inbox", [])),
+                "regular_count": len(triage_results.get("regular_inbox", [])),
+                "archived_count": len(triage_results.get("auto_archive", [])),
+                "spam_count": len(triage_results.get("spam_folder", []))
+            }
+        }
+        
+        logger.info(f"Created smart inbox: {smart_inbox['stats']['priority_count']} priority, {smart_inbox['stats']['regular_count']} regular")
+        return smart_inbox
+    
     async def get_agent_status(self, agent_name: str) -> Dict[str, Any]:
         """Get the status of a specific agent."""
         if agent_name not in self.agents:
@@ -383,6 +440,8 @@ class EmailAgentCrew(BaseCrewAdapter):
             status.update(await self.sentiment_analyzer.get_status())
         elif agent_name == "thread_analyzer":
             status.update(await self.thread_analyzer.get_status())
+        elif agent_name == "triage_agent":
+            status.update(await self.triage_agent.get_status())
         
         return status
     
@@ -399,6 +458,8 @@ class EmailAgentCrew(BaseCrewAdapter):
                 await self.sentiment_analyzer.shutdown()
             if self.thread_analyzer:
                 await self.thread_analyzer.shutdown()
+            if self.triage_agent:
+                await self.triage_agent.shutdown()
             
             self.crew = None
             self.agents.clear()
