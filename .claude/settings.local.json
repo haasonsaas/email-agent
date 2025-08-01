@@ -41,7 +41,12 @@
       "Bash(.venv/bin/python:*)",
       "Bash(venv/bin/python create_receipt_label.py:*)",
       "Bash(venv/bin/python test_receipt_labeling.py:*)",
-      "Bash(venv/bin/python:*)"
+      "Bash(venv/bin/python:*)",
+      "Bash(git commit:*)",
+      "Bash(venv/bin/email-agent pull:*)",
+      "Bash(mv:*)",
+      "Bash(true)",
+      "Bash(venv/bin/email-agent:*)"
     ],
     "deny": []
   }
