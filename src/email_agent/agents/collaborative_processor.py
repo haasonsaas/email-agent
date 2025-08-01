@@ -185,8 +185,12 @@ class CollaborativeEmailProcessor:
             # Get enhanced labels
             labels, label_reason = await self.ceo_labeler.get_enhanced_labels(email)
             
-            # Determine confidence based on profile strength
-            if sender_profile and sender_profile.total_emails > 5:
+            # Determine confidence based on strategic importance and profile strength
+            if sender_profile and sender_profile.strategic_importance == 'critical':
+                confidence = AgentConfidence.VERY_HIGH  # Critical senders = very high confidence
+            elif sender_profile and sender_profile.strategic_importance == 'high':
+                confidence = AgentConfidence.HIGH  # High importance = high confidence
+            elif sender_profile and sender_profile.total_emails > 5:
                 confidence = AgentConfidence.HIGH
             elif sender_profile and sender_profile.total_emails > 2:
                 confidence = AgentConfidence.MEDIUM
@@ -242,13 +246,17 @@ class CollaborativeEmailProcessor:
                     break
             
             if contact_profile:
-                # Score based on relationship type and importance
+                # Enhanced scoring based on relationship type and importance
                 relationship_scores = {
+                    'founder': 0.98,     # Founder gets highest priority
+                    'internal': 0.95,    # Internal company emails
                     'board': 0.95,
                     'investor': 0.90,
                     'advisor': 0.75,
+                    'vendor_critical': 0.70,  # Critical vendors higher
                     'customer': 0.60,
                     'team': 0.55,
+                    'vendor_important': 0.45,  # Important vendors
                     'vendor': 0.30
                 }
                 
@@ -270,11 +278,34 @@ class CollaborativeEmailProcessor:
                     risks.append("High-stakes relationship - response timing critical")
                 
             else:
-                priority_score = 0.40
-                reasoning = "🤝 Unknown relationship - new contact analysis needed"
-                urgency = "medium"
-                confidence = AgentConfidence.MEDIUM
-                opportunities = ["Potential new relationship to cultivate"]
+                # Fallback: check email domain for strategic classification
+                sender_domain = email.sender.email.split('@')[-1] if '@' in email.sender.email else ''
+                
+                # Use CEO labeler's strategic domains for fallback classification
+                domain_classification = self.ceo_labeler.strategic_domains.get(sender_domain)
+                
+                if domain_classification == 'internal':
+                    priority_score = 0.95
+                    reasoning = "🤝 Internal email (domain-based detection)"
+                    urgency = "critical"
+                    confidence = AgentConfidence.HIGH
+                elif domain_classification == 'vendor_critical':
+                    priority_score = 0.70
+                    reasoning = f"🤝 Critical vendor: {sender_domain}"
+                    urgency = "high"
+                    confidence = AgentConfidence.HIGH
+                elif domain_classification == 'vendor_important':
+                    priority_score = 0.45
+                    reasoning = f"🤝 Important vendor: {sender_domain}"
+                    urgency = "medium"
+                    confidence = AgentConfidence.MEDIUM
+                else:
+                    priority_score = 0.40
+                    reasoning = "🤝 Unknown relationship - new contact analysis needed"
+                    urgency = "medium"
+                    confidence = AgentConfidence.MEDIUM
+                
+                opportunities = ["Potential new relationship to cultivate"] if priority_score <= 0.40 else []
                 risks = []
             
             return AgentAssessment(
@@ -391,13 +422,30 @@ class CollaborativeEmailProcessor:
             )
     
     async def _get_triage_baseline_assessment(self, email: Email) -> AgentAssessment:
-        """Get baseline triage assessment."""
+        """Get baseline triage assessment with strategic awareness."""
         try:
             # Get triage decision
             decision, attention_score = await self.triage_agent.make_triage_decision(email)
             
-            priority_score = attention_score.score / 100.0
-            reasoning = f"📋 Attention score: {attention_score.score:.1f}, Decision: {decision.value}"
+            base_priority_score = attention_score.score / 100.0
+            
+            # Boost score for strategic senders (use CEO labeler profiles)
+            strategic_boost = 0.0
+            sender_profile = self.ceo_labeler.sender_profiles.get(email.sender.email.lower())
+            if sender_profile:
+                if sender_profile.strategic_importance == 'critical':
+                    strategic_boost = 0.40  # Significant boost for critical senders
+                elif sender_profile.strategic_importance == 'high':
+                    strategic_boost = 0.25  # Boost for high importance
+                elif sender_profile.strategic_importance == 'medium':
+                    strategic_boost = 0.10  # Small boost for medium
+            
+            priority_score = min(base_priority_score + strategic_boost, 1.0)
+            
+            reasoning = f"📋 Attention score: {attention_score.score:.1f}"
+            if strategic_boost > 0:
+                reasoning += f" + strategic boost: {strategic_boost:.2f}"
+            reasoning += f", Decision: {decision.value}"
             
             urgency_mapping = {
                 'PRIORITY_INBOX': 'high',
