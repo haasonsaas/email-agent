@@ -9,7 +9,7 @@ import re
 
 from openai import AsyncOpenAI
 from ..config import settings
-from ..models import Email, EmailActionItem
+from ..models import Email
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ class ActionExtractorAgent:
         
         Subject: {email.subject}
         From: {email.sender.name or email.sender.email}
-        Body: {email.body or email.subject}
+        Body: {getattr(email, 'body_text', getattr(email, 'body', email.subject))}
         
         Extract and return JSON with:
         {{
@@ -65,10 +65,15 @@ class ActionExtractorAgent:
             ],
             "needs_response": true/false,
             "response_urgency": "urgent|normal|low",
-            "summary": "brief summary of what this email is about"
+            "summary": "brief summary of what this email is about",
+            "email_type": "receipt|notification|request|conversation|newsletter|alert"
         }}
         
-        Focus on concrete, actionable items. If unclear, mark as null.
+        Important guidelines:
+        - Mark as "urgent" ONLY if: explicit deadline today/tomorrow, security/fraud alerts, time-sensitive requests
+        - Routine receipts, transaction confirmations, and shipping notifications are NOT urgent
+        - Bank/card transaction emails are usually just receipts unless they mention fraud or unusual activity
+        - Focus on what actually requires human action vs. just informational emails
         """
         
         try:

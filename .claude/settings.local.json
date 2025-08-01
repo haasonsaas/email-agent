@@ -34,7 +34,14 @@
       "Bash(docker-compose build:*)",
       "Bash(docker-compose run:*)",
       "Bash(chmod:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git push:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(.venv/bin/python:*)",
+      "Bash(venv/bin/python create_receipt_label.py:*)",
+      "Bash(venv/bin/python test_receipt_labeling.py:*)",
+      "Bash(venv/bin/python:*)"
     ],
     "deny": []
   }

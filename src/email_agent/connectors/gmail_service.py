@@ -34,8 +34,8 @@ class GmailService:
                 token_uri=self.credentials.get('token_uri', 'https://oauth2.googleapis.com/token'),
                 client_id=self.credentials.get('client_id'),
                 client_secret=self.credentials.get('client_secret'),
-                scopes=['https://www.googleapis.com/auth/gmail.modify',
-                       'https://www.googleapis.com/auth/calendar.events']
+                scopes=['https://www.googleapis.com/auth/gmail.readonly',
+                       'https://www.googleapis.com/auth/gmail.modify']
             )
             
             if creds.expired and creds.refresh_token:
@@ -64,12 +64,13 @@ class GmailService:
     async def create_action_labels(self) -> Dict[str, str]:
         """Create Gmail labels for action-based organization."""
         action_labels = {
-            'EmailAgent/Actions/HighPriority': 'ff0000',  # Red
-            'EmailAgent/Actions/MeetingRequest': '0066cc',  # Blue
-            'EmailAgent/Actions/Deadline': 'ff6600',  # Orange
-            'EmailAgent/Actions/WaitingFor': 'ffcc00',  # Yellow
-            'EmailAgent/Actions/Commitment': '9900cc',  # Purple
-            'EmailAgent/Processed': '00cc00'  # Green
+            'EmailAgent/Actions/HighPriority': 'fb4c2f',  # Red
+            'EmailAgent/Actions/MeetingRequest': '1c4587',  # Blue
+            'EmailAgent/Actions/Deadline': 'ffad47',  # Orange
+            'EmailAgent/Actions/WaitingFor': 'fad165',  # Yellow
+            'EmailAgent/Actions/Commitment': '8e63ce',  # Purple
+            'EmailAgent/Receipts': '666666',  # Gray
+            'EmailAgent/Processed': '16a766'  # Green
         }
         
         created_labels = {}
@@ -107,34 +108,42 @@ class GmailService:
         try:
             labels_to_add = []
             
-            # High priority actions
-            if actions.get('response_urgency') == 'urgent':
-                if 'EmailAgent/Actions/HighPriority' in self._labels_cache:
-                    labels_to_add.append(self._labels_cache['EmailAgent/Actions/HighPriority'])
+            # Check email type first
+            email_type = actions.get('email_type', '')
             
-            # Meeting requests
-            if actions.get('meeting_requests'):
-                if 'EmailAgent/Actions/MeetingRequest' in self._labels_cache:
-                    labels_to_add.append(self._labels_cache['EmailAgent/Actions/MeetingRequest'])
+            # Receipt emails get special handling
+            if email_type == 'receipt' and 'EmailAgent/Receipts' in self._labels_cache:
+                labels_to_add.append(self._labels_cache['EmailAgent/Receipts'])
+                # Receipts typically don't need other action labels
+            else:
+                # High priority actions (but not for receipts)
+                if actions.get('response_urgency') == 'urgent':
+                    if 'EmailAgent/Actions/HighPriority' in self._labels_cache:
+                        labels_to_add.append(self._labels_cache['EmailAgent/Actions/HighPriority'])
+                
+                # Meeting requests
+                if actions.get('meeting_requests'):
+                    if 'EmailAgent/Actions/MeetingRequest' in self._labels_cache:
+                        labels_to_add.append(self._labels_cache['EmailAgent/Actions/MeetingRequest'])
+                
+                # Deadlines
+                action_items = actions.get('action_items', [])
+                has_deadlines = any(item.get('deadline') for item in action_items)
+                if has_deadlines:
+                    if 'EmailAgent/Actions/Deadline' in self._labels_cache:
+                        labels_to_add.append(self._labels_cache['EmailAgent/Actions/Deadline'])
+                
+                # Waiting for
+                if actions.get('waiting_for'):
+                    if 'EmailAgent/Actions/WaitingFor' in self._labels_cache:
+                        labels_to_add.append(self._labels_cache['EmailAgent/Actions/WaitingFor'])
+                
+                # Commitments
+                if actions.get('commitments_made'):
+                    if 'EmailAgent/Actions/Commitment' in self._labels_cache:
+                        labels_to_add.append(self._labels_cache['EmailAgent/Actions/Commitment'])
             
-            # Deadlines
-            action_items = actions.get('action_items', [])
-            has_deadlines = any(item.get('deadline') for item in action_items)
-            if has_deadlines:
-                if 'EmailAgent/Actions/Deadline' in self._labels_cache:
-                    labels_to_add.append(self._labels_cache['EmailAgent/Actions/Deadline'])
-            
-            # Waiting for
-            if actions.get('waiting_for'):
-                if 'EmailAgent/Actions/WaitingFor' in self._labels_cache:
-                    labels_to_add.append(self._labels_cache['EmailAgent/Actions/WaitingFor'])
-            
-            # Commitments
-            if actions.get('commitments_made'):
-                if 'EmailAgent/Actions/Commitment' in self._labels_cache:
-                    labels_to_add.append(self._labels_cache['EmailAgent/Actions/Commitment'])
-            
-            # Mark as processed
+            # Always mark as processed
             if 'EmailAgent/Processed' in self._labels_cache:
                 labels_to_add.append(self._labels_cache['EmailAgent/Processed'])
             

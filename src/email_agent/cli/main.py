@@ -406,7 +406,9 @@ def smart_actions(
     apply_labels: bool = typer.Option(True, "--apply-labels/--no-labels", help="Apply Gmail labels based on actions"),
     generate_replies: bool = typer.Option(False, "--replies", help="Generate smart reply suggestions"),
     create_events: bool = typer.Option(False, "--events", help="Create calendar events for meetings"),
-    dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be done without making changes")
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be done without making changes"),
+    skip_processed: bool = typer.Option(True, "--skip-processed/--all", help="Skip already processed emails"),
+    show_all: bool = typer.Option(False, "--show-all", help="Show all emails even if no actions found")
 ):
     """Extract actions from emails and leverage Gmail SDK features."""
     
