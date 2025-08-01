@@ -27,6 +27,13 @@
       "Bash(email-agent:*)",
       "Bash(timeout 5 email-agent:*)",
       "Bash(find:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(timeout 3 email-agent:*)",
+      "Bash(docker-compose build:*)",
+      "Bash(docker-compose run:*)",
+      "Bash(chmod:*)",
       "Bash(git add:*)"
     ],
     "deny": []

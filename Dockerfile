@@ -24,6 +24,9 @@ WORKDIR /app
 # Copy all source files first
 COPY . ./
 
+# Make entrypoint executable
+RUN chmod +x docker-entrypoint.sh
+
 # Install Python dependencies
 RUN pip install --upgrade pip setuptools wheel
 RUN pip install -e .
@@ -49,6 +52,9 @@ ENV PYTHONPATH=/app/src
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD email-agent init check || exit 1
+
+# Set entrypoint
+ENTRYPOINT ["./docker-entrypoint.sh"]
 
 # Default command
 CMD ["bash"]
