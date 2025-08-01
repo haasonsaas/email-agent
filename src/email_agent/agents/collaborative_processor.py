@@ -155,9 +155,9 @@ class CollaborativeEmailProcessor:
             labels, label_reason = await self.ceo_labeler.get_enhanced_labels(email)
             
             # Determine confidence based on profile strength
-            if sender_profile and sender_profile.email_count > 5:
+            if sender_profile and sender_profile.total_emails > 5:
                 confidence = AgentConfidence.HIGH
-            elif sender_profile and sender_profile.email_count > 2:
+            elif sender_profile and sender_profile.total_emails > 2:
                 confidence = AgentConfidence.MEDIUM
             else:
                 confidence = AgentConfidence.LOW
