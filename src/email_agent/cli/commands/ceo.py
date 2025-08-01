@@ -871,7 +871,7 @@ async def _collaborative_processing(limit: int, dry_run: bool, show_reasoning: b
                 emails = []
                 for e in emails_orm:
                     email = Email(
-                        id=str(e.id),
+                        id=e.id,
                         message_id=e.message_id,
                         thread_id=e.thread_id,
                         subject=e.subject,
@@ -935,16 +935,57 @@ async def _collaborative_processing(limit: int, dry_run: bool, show_reasoning: b
         if not dry_run and labels_to_apply:
             console.print(f"\n[bold]📋 Applying Labels to {len(labels_to_apply)} emails...[/bold]")
             
-            applied_count = 0
-            for email_id, labels in labels_to_apply.items():
-                try:
-                    success = gmail_service.apply_labels(email_id, labels)
-                    if success:
-                        applied_count += 1
-                except Exception as e:
-                    console.print(f"[red]Failed to apply labels to {email_id}: {e}[/red]")
-            
-            console.print(f"[green]✅ Successfully applied labels to {applied_count} emails[/green]")
+            # Initialize Gmail service like the enhanced CEO labeler does
+            try:
+                from googleapiclient.discovery import build
+                from google.oauth2.credentials import Credentials
+                
+                # Use same credentials approach as enhanced CEO labeler
+                creds = Credentials.from_authorized_user_info(credentials)
+                service = build('gmail', 'v1', credentials=creds)
+                
+                # Get all CEO labels first
+                results = service.users().labels().list(userId='me').execute()
+                labels_result = results.get('labels', [])
+                label_map = {label['name']: label['id'] for label in labels_result if 'EmailAgent/CEO/' in label['name']}
+                
+                applied_count = 0
+                for email_id, labels in labels_to_apply.items():
+                    try:
+                        # Find Gmail message ID using the database email ID
+                        with db.get_session() as session:
+                            from ...storage.models import EmailORM
+                            # Get email by ID
+                            email_orm = session.query(EmailORM).filter(EmailORM.id == email_id).first()
+                            if email_orm and email_orm.message_id:
+                                # Search for the Gmail message
+                                query = f'rfc822msgid:{email_orm.message_id}'
+                                search_results = service.users().messages().list(userId='me', q=query).execute()
+                                
+                                if search_results.get('messages'):
+                                    gmail_msg_id = search_results['messages'][0]['id']
+                                    
+                                    # Prepare labels to add
+                                    labels_to_add = []
+                                    for label_name in labels:
+                                        full_label = f'EmailAgent/CEO/{label_name}'
+                                        if full_label in label_map:
+                                            labels_to_add.append(label_map[full_label])
+                                    
+                                    # Apply labels
+                                    if labels_to_add:
+                                        body = {'addLabelIds': labels_to_add}
+                                        service.users().messages().modify(
+                                            userId='me', id=gmail_msg_id, body=body
+                                        ).execute()
+                                        applied_count += 1
+                    except Exception as e:
+                        console.print(f"[red]Failed to apply labels to {email_id}: {e}[/red]")
+                
+                console.print(f"[green]✅ Successfully applied labels to {applied_count} emails[/green]")
+                
+            except Exception as e:
+                console.print(f"[red]❌ Failed to initialize Gmail service for labeling: {e}[/red]")
         
         elif dry_run:
             console.print(f"\n[yellow]🧪 Dry run complete - no labels were applied[/yellow]")
