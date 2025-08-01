@@ -17,6 +17,7 @@ from ...agents.action_extractor import ActionExtractorAgent
 from ...agents.enhanced_ceo_labeler import EnhancedCEOLabeler
 from ...agents.relationship_intelligence import RelationshipIntelligence
 from ...agents.thread_intelligence import ThreadIntelligence
+from ...agents.collaborative_processor import CollaborativeEmailProcessor
 from ...storage.database import DatabaseManager
 from ...models import Email, EmailAddress, EmailCategory, EmailPriority
 from ...connectors.gmail_service import GmailService
@@ -72,6 +73,14 @@ def relationships(limit: int = typer.Option(1000, "--limit", "-l", help="Number 
 def threads(limit: int = typer.Option(1000, "--limit", "-l", help="Number of emails to analyze")):
     """Analyze thread intelligence and show conversation patterns."""
     asyncio.run(_analyze_threads(limit))
+
+
+@app.command()
+def collaborative(limit: int = typer.Option(50, "--limit", "-l", help="Number of emails to process"),
+                 dry_run: bool = typer.Option(False, "--dry-run", help="Analyze without applying labels"),
+                 show_reasoning: bool = typer.Option(True, "--show-reasoning/--hide-reasoning", help="Show detailed agent reasoning")):
+    """Process emails using collaborative multi-agent intelligence."""
+    asyncio.run(_collaborative_processing(limit, dry_run, show_reasoning))
 
 
 async def _setup_labels():
@@ -826,3 +835,218 @@ async def _analyze_threads(limit: int):
             )
         
         console.print(stalled_table)
+
+
+async def _collaborative_processing(limit: int, dry_run: bool, show_reasoning: bool):
+    """Process emails using collaborative multi-agent intelligence."""
+    console.print(Panel.fit(
+        "[bold cyan]🤝 Collaborative Multi-Agent Email Processing[/bold cyan]", 
+        border_style="cyan"
+    ))
+    
+    # Initialize collaborative processor
+    console.print("\n[bold]Initializing Collaborative Intelligence...[/bold]")
+    processor = CollaborativeEmailProcessor()
+    
+    # Get Gmail service
+    try:
+        # For now, use the enhanced CEO labeler's Gmail connection approach
+        import keyring
+        creds_json = keyring.get_password("email_agent", "gmail_credentials_default")
+        if not creds_json:
+            console.print("[red]❌ No Gmail credentials found. Run 'email-agent config gmail' first.[/red]")
+            return
+        
+        credentials = json.loads(creds_json)
+        gmail_service = GmailService(credentials)
+        
+        # Get emails from Gmail using database (like other CEO commands)
+        with console.status("[bold blue]📧 Fetching emails from database..."):
+            db = DatabaseManager()
+            from ...storage.models import EmailORM
+            
+            with db.get_session() as session:
+                emails_orm = session.query(EmailORM).order_by(EmailORM.date.desc()).limit(limit).all()
+                
+                emails = []
+                for e in emails_orm:
+                    email = Email(
+                        id=str(e.id),
+                        message_id=e.message_id,
+                        thread_id=e.thread_id,
+                        subject=e.subject,
+                        sender=EmailAddress(email=e.sender_email, name=e.sender_name),
+                        recipients=[],
+                        date=e.date,
+                        received_date=e.received_date,
+                        body_text=e.body_text or '',
+                        is_read=e.is_read,
+                        is_flagged=e.is_flagged,
+                        category=EmailCategory(e.category) if e.category else EmailCategory.PRIMARY,
+                        priority=EmailPriority(e.priority) if e.priority else EmailPriority.NORMAL,
+                        tags=json.loads(e.tags) if e.tags else []
+                    )
+                    emails.append(email)
+        
+        if not emails:
+            console.print("[yellow]No emails found to process[/yellow]")
+            return
+        
+        console.print(f"[green]✅ Retrieved {len(emails)} emails for collaborative processing[/green]")
+        
+        # Show processor status
+        if show_reasoning:
+            status = await processor.get_processor_status()
+            console.print(f"\n[dim]Processor: {status['processor_type']} with {status['active_agents']} active agents[/dim]")
+        
+        # Process emails collaboratively
+        results = []
+        labels_to_apply = defaultdict(list)
+        
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            console=console
+        ) as progress:
+            
+            task = progress.add_task("🤝 Collaborative processing...", total=len(emails))
+            
+            for email in emails:
+                # Get collaborative decision
+                decision = await processor.process_email_collaboratively(email)
+                results.append(decision)
+                
+                # Collect labels for application
+                if decision.agreed_labels and not dry_run:
+                    labels_to_apply[email.id] = decision.agreed_labels
+                
+                # Show detailed reasoning for high-priority emails
+                if show_reasoning and (decision.final_priority > 0.7 or decision.should_escalate):
+                    await _display_collaborative_decision(email, decision)
+                
+                progress.advance(task)
+        
+        # Display summary statistics
+        await _display_collaborative_summary(results, dry_run)
+        
+        # Apply labels if not dry run
+        if not dry_run and labels_to_apply:
+            console.print(f"\n[bold]📋 Applying Labels to {len(labels_to_apply)} emails...[/bold]")
+            
+            applied_count = 0
+            for email_id, labels in labels_to_apply.items():
+                try:
+                    success = gmail_service.apply_labels(email_id, labels)
+                    if success:
+                        applied_count += 1
+                except Exception as e:
+                    console.print(f"[red]Failed to apply labels to {email_id}: {e}[/red]")
+            
+            console.print(f"[green]✅ Successfully applied labels to {applied_count} emails[/green]")
+        
+        elif dry_run:
+            console.print(f"\n[yellow]🧪 Dry run complete - no labels were applied[/yellow]")
+        
+    except Exception as e:
+        console.print(f"[red]❌ Collaborative processing failed: {e}[/red]")
+
+
+async def _display_collaborative_decision(email: Email, decision):
+    """Display detailed collaborative decision for high-priority emails."""
+    
+    # Create decision summary
+    priority_color = "red" if decision.final_priority > 0.8 else "yellow"
+    urgency_icon = "🚨" if decision.should_escalate else "⚡" if decision.final_urgency == "high" else "📋"
+    
+    decision_text = f"""[bold]{urgency_icon} {email.subject[:60]}...[/bold]
+[dim]From: {email.sender.name or email.sender.email}[/dim]
+
+[bold]Collaborative Decision:[/bold]
+Priority: [{priority_color}]{decision.final_priority:.2f}[/{priority_color}] | Urgency: {decision.final_urgency.upper()}
+Confidence: {decision.consensus_confidence:.1%} | Escalate: {"YES" if decision.should_escalate else "No"}
+Labels: {', '.join(decision.agreed_labels) if decision.agreed_labels else 'None'}"""
+    
+    if decision.conflicts_resolved:
+        decision_text += f"\n[red]Conflicts resolved: {len(decision.conflicts_resolved)}[/red]"
+    
+    console.print(Panel(decision_text, border_style="blue", width=80))
+    
+    # Show agent reasoning if requested
+    if decision.agent_assessments:
+        console.print("[dim]Agent Assessments:[/dim]")
+        for assessment in decision.agent_assessments:
+            if assessment.confidence.value >= 0.6:  # Only show confident assessments
+                confidence_color = "green" if assessment.confidence.value > 0.8 else "yellow"
+                console.print(f"  [{confidence_color}]{assessment.agent_name}[/{confidence_color}]: {assessment.reasoning}")
+    
+    console.print()
+
+
+async def _display_collaborative_summary(results: list, dry_run: bool):
+    """Display summary of collaborative processing results."""
+    
+    if not results:
+        return
+    
+    console.print(f"\n[bold]📊 Collaborative Processing Summary ({len(results)} emails):[/bold]")
+    
+    # Priority distribution
+    critical_count = sum(1 for r in results if r.final_priority > 0.8)
+    high_count = sum(1 for r in results if 0.6 < r.final_priority <= 0.8)
+    medium_count = sum(1 for r in results if 0.4 < r.final_priority <= 0.6)
+    low_count = sum(1 for r in results if r.final_priority <= 0.4)
+    
+    # Confidence distribution
+    high_confidence = sum(1 for r in results if r.consensus_confidence > 0.7)
+    medium_confidence = sum(1 for r in results if 0.5 < r.consensus_confidence <= 0.7)
+    low_confidence = sum(1 for r in results if r.consensus_confidence <= 0.5)
+    
+    # Escalations and conflicts
+    escalations = sum(1 for r in results if r.should_escalate)
+    conflicts = sum(len(r.conflicts_resolved) for r in results)
+    
+    # Create summary table
+    summary_table = Table(title="Processing Results")
+    summary_table.add_column("Metric", style="cyan")
+    summary_table.add_column("Count", style="magenta")
+    summary_table.add_column("Percentage", style="yellow")
+    
+    total = len(results)
+    summary_table.add_row("Critical Priority", str(critical_count), f"{critical_count/total:.1%}")
+    summary_table.add_row("High Priority", str(high_count), f"{high_count/total:.1%}")
+    summary_table.add_row("Medium Priority", str(medium_count), f"{medium_count/total:.1%}")
+    summary_table.add_row("Low Priority", str(low_count), f"{low_count/total:.1%}")
+    summary_table.add_row("", "", "")
+    summary_table.add_row("High Confidence", str(high_confidence), f"{high_confidence/total:.1%}")
+    summary_table.add_row("Medium Confidence", str(medium_confidence), f"{medium_confidence/total:.1%}")
+    summary_table.add_row("Low Confidence", str(low_confidence), f"{low_confidence/total:.1%}")
+    summary_table.add_row("", "", "")
+    summary_table.add_row("Escalations", str(escalations), f"{escalations/total:.1%}")
+    summary_table.add_row("Conflicts Resolved", str(conflicts), f"{conflicts/total:.1f} avg")
+    
+    console.print(summary_table)
+    
+    # Most common labels
+    all_labels = []
+    for result in results:
+        all_labels.extend(result.agreed_labels)
+    
+    if all_labels:
+        from collections import Counter
+        label_counts = Counter(all_labels)
+        
+        console.print(f"\n[bold]🏷️  Most Applied Labels:[/bold]")
+        for label, count in label_counts.most_common(10):
+            console.print(f"  • {label}: {count} emails")
+    
+    # Show action summary
+    action_mode = "would be taken" if dry_run else "taken"
+    console.print(f"\n[bold green]✅ Collaborative decisions {action_mode} for {len(results)} emails[/bold green]")
+    
+    if escalations > 0:
+        console.print(f"[bold red]🚨 {escalations} emails flagged for immediate escalation[/bold red]")
+    
+    if conflicts > 0:
+        console.print(f"[yellow]⚖️  {conflicts} agent conflicts successfully resolved[/yellow]")
