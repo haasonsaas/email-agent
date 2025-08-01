@@ -72,7 +72,7 @@ class EnhancedCEOLabeler:
             r'\b(?:feature request|bug report|support)\b'
         ]
         
-        # High-value domains (from analysis)
+        # Enhanced strategic domains with more patterns
         self.strategic_domains = {
             'haas.holdings': 'internal',
             'rippling.com': 'vendor_critical',
@@ -81,7 +81,16 @@ class EnhancedCEOLabeler:
             'amazonaws.com': 'vendor_critical',
             'google.com': 'vendor_important',
             'apple.com': 'vendor_important',
-            'microsoft.com': 'vendor_important'
+            'microsoft.com': 'vendor_important',
+            'stripe.com': 'vendor_critical',
+            'plaid.com': 'vendor_critical',
+            'anthropic.com': 'vendor_critical',
+            'openai.com': 'vendor_critical',
+            'tailscale.com': 'vendor_important',
+            'atlassian.com': 'vendor_important',
+            'figma.com': 'vendor_important',
+            'notion.so': 'vendor_important',
+            'vercel.com': 'vendor_important'
         }
         
         # Known important contacts (would be populated from CRM/contacts)
@@ -207,12 +216,12 @@ class EnhancedCEOLabeler:
 
     def _determine_strategic_importance(self, importance_score: float, 
                                       relationship_type: str, sender_email: str) -> str:
-        """Determine strategic importance level."""
-        if importance_score >= 80 or relationship_type in ['founder', 'board']:
+        """Enhanced strategic importance determination."""
+        if importance_score >= 70 or relationship_type in ['founder', 'board', 'internal']:
             return 'critical'
-        elif importance_score >= 60 or relationship_type in ['investor', 'vendor_critical']:
+        elif importance_score >= 50 or relationship_type in ['investor', 'vendor_critical']:
             return 'high'
-        elif importance_score >= 30 or relationship_type in ['customer', 'team']:
+        elif importance_score >= 25 or relationship_type in ['customer', 'team', 'vendor_important']:
             return 'medium'
         else:
             return 'low'

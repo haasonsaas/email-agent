@@ -73,14 +73,48 @@ class CollaborativeEmailProcessor:
             'triage_baseline': 0.20 # Basic triage provides foundation
         }
         
-        # Confidence thresholds for different decision types
+        # Improved confidence thresholds for better decision diversity
         self.confidence_thresholds = {
-            'high_priority': 0.75,
-            'escalation': 0.80,
-            'autonomous_action': 0.85
+            'high_priority': 0.65,    # Lowered from 0.75
+            'escalation': 0.70,       # Lowered from 0.80
+            'autonomous_action': 0.80  # Lowered from 0.85
         }
         
+        # Batch intelligence cache
+        self._batch_profiles_built = False
+        self._batch_relationships_analyzed = False
+        self._batch_threads_analyzed = False
+        
         logger.info("🤝 Collaborative Email Processor initialized")
+    
+    async def prepare_batch_intelligence(self, emails: List[Email]) -> None:
+        """Pre-build intelligence for a batch of emails to avoid redundant work."""
+        logger.info(f"🧠 Pre-building batch intelligence for {len(emails)} emails...")
+        
+        # Build all sender profiles at once
+        if not self._batch_profiles_built:
+            await self.ceo_labeler.build_sender_profiles(emails)
+            self._batch_profiles_built = True
+            logger.debug(f"  ✅ Built profiles for {len(self.ceo_labeler.sender_profiles)} senders")
+        
+        # Analyze all relationships at once  
+        if not self._batch_relationships_analyzed:
+            await self.relationship_agent.analyze_relationships(emails)
+            self._batch_relationships_analyzed = True
+            logger.debug(f"  🤝 Analyzed {len(self.relationship_agent.contact_profiles)} relationships")
+        
+        # Analyze all threads at once
+        if not self._batch_threads_analyzed:
+            await self.thread_agent.analyze_thread_patterns(emails)
+            self._batch_threads_analyzed = True
+            logger.debug(f"  🧵 Analyzed {len(self.thread_agent.thread_profiles)} threads")
+    
+    def reset_batch_cache(self) -> None:
+        """Reset batch cache for new batch processing."""
+        self._batch_profiles_built = False
+        self._batch_relationships_analyzed = False
+        self._batch_threads_analyzed = False
+        logger.debug("🔄 Batch intelligence cache reset")
     
     async def process_email_collaboratively(self, email: Email) -> CollaborativeDecision:
         """Process email with multi-agent collaboration."""
@@ -131,11 +165,8 @@ class CollaborativeEmailProcessor:
     async def _get_ceo_strategic_assessment(self, email: Email) -> AgentAssessment:
         """Get CEO strategic importance assessment."""
         try:
-            # Build sender profile for strategic context
-            await self.ceo_labeler.build_sender_profiles([email])
-            
-            # Get strategic importance
-            sender_profile = self.ceo_labeler.sender_profiles.get(email.sender.email)
+            # Use pre-built sender profile (no redundant building)
+            sender_profile = self.ceo_labeler.sender_profiles.get(email.sender.email.lower())
             if not sender_profile:
                 strategic_score = 0.3
                 reasoning = "Unknown sender, low strategic importance"
@@ -203,13 +234,10 @@ class CollaborativeEmailProcessor:
     async def _get_relationship_assessment(self, email: Email) -> AgentAssessment:
         """Get relationship intelligence assessment."""
         try:
-            # Analyze relationship context
-            results = await self.relationship_agent.analyze_relationships([email])
-            
-            # Get contact profile if available
+            # Use pre-built relationship intelligence (no redundant analysis)
             contact_profile = None
             for profile in self.relationship_agent.contact_profiles.values():
-                if profile.email == email.sender.email:
+                if profile.email.lower() == email.sender.email.lower():
                     contact_profile = profile
                     break
             
@@ -260,7 +288,7 @@ class CollaborativeEmailProcessor:
                 opportunities=opportunities,
                 metadata={
                     'contact_profile': contact_profile.__dict__ if contact_profile else None,
-                    'strategic_contacts': results.get('strategic_contacts', 0)
+                    'strategic_contacts': len(self.relationship_agent.contact_profiles)
                 }
             )
             
@@ -281,10 +309,7 @@ class CollaborativeEmailProcessor:
     async def _get_thread_context_assessment(self, email: Email) -> AgentAssessment:
         """Get thread continuity assessment."""
         try:
-            # Analyze thread patterns
-            results = await self.thread_agent.analyze_thread_patterns([email])
-            
-            # Get thread profile if available
+            # Use pre-built thread intelligence (no redundant analysis) 
             thread_profile = None
             for profile in self.thread_agent.thread_profiles.values():
                 if profile.thread_id == email.thread_id:
@@ -347,7 +372,7 @@ class CollaborativeEmailProcessor:
                 opportunities=opportunities,
                 metadata={
                     'thread_profile': thread_profile.__dict__ if thread_profile else None,
-                    'critical_threads': results.get('critical_threads', 0)
+                    'critical_threads': len(self.thread_agent.thread_profiles)
                 }
             )
             
@@ -533,11 +558,11 @@ class CollaborativeEmailProcessor:
         
         reasoning_summary = " | ".join(reasoning_parts) if reasoning_parts else "Consensus reached with limited confidence"
         
-        # Determine if escalation is needed
+        # Determine if escalation is needed (improved logic)
         should_escalate = (
             consensus['priority_score'] > self.confidence_thresholds['escalation'] and
-            consensus['confidence'] > 0.7
-        ) or len(conflicts) > 2
+            consensus['confidence'] > 0.6
+        ) or len(conflicts) > 2 or consensus['urgency'] == 'critical'
         
         # Generate follow-up actions
         follow_up_actions = []

@@ -78,9 +78,19 @@ def threads(limit: int = typer.Option(1000, "--limit", "-l", help="Number of ema
 @app.command()
 def collaborative(limit: int = typer.Option(50, "--limit", "-l", help="Number of emails to process"),
                  dry_run: bool = typer.Option(False, "--dry-run", help="Analyze without applying labels"),
-                 show_reasoning: bool = typer.Option(True, "--show-reasoning/--hide-reasoning", help="Show detailed agent reasoning")):
+                 show_reasoning: bool = typer.Option(True, "--show-reasoning/--hide-reasoning", help="Show detailed agent reasoning"),
+                 batch_size: int = typer.Option(20, "--batch-size", help="Optimal batch size for processing")):
     """Process emails using collaborative multi-agent intelligence."""
-    asyncio.run(_collaborative_processing(limit, dry_run, show_reasoning))
+    asyncio.run(_collaborative_processing(limit, dry_run, show_reasoning, batch_size))
+
+
+@app.command()
+def process_inbox(dry_run: bool = typer.Option(False, "--dry-run", help="Analyze without applying labels"),
+                 show_progress: bool = typer.Option(True, "--show-progress/--hide-progress", help="Show batch progress"),
+                 max_emails: int = typer.Option(500, "--max-emails", help="Maximum emails to process"),
+                 batch_size: int = typer.Option(20, "--batch-size", help="Optimal batch size")):
+    """Process entire inbox using optimized collaborative batching."""
+    asyncio.run(_process_inbox_batched(dry_run, show_progress, max_emails, batch_size))
 
 
 async def _setup_labels():
@@ -837,7 +847,7 @@ async def _analyze_threads(limit: int):
         console.print(stalled_table)
 
 
-async def _collaborative_processing(limit: int, dry_run: bool, show_reasoning: bool):
+async def _collaborative_processing(limit: int, dry_run: bool, show_reasoning: bool, batch_size: int = 20):
     """Process emails using collaborative multi-agent intelligence."""
     console.print(Panel.fit(
         "[bold cyan]🤝 Collaborative Multi-Agent Email Processing[/bold cyan]", 
@@ -898,6 +908,10 @@ async def _collaborative_processing(limit: int, dry_run: bool, show_reasoning: b
         if show_reasoning:
             status = await processor.get_processor_status()
             console.print(f"\n[dim]Processor: {status['processor_type']} with {status['active_agents']} active agents[/dim]")
+        
+        # Pre-build batch intelligence for efficiency
+        with console.status("[bold blue]🧠 Pre-building batch intelligence..."):
+            await processor.prepare_batch_intelligence(emails)
         
         # Process emails collaboratively
         results = []
@@ -1091,3 +1105,267 @@ async def _display_collaborative_summary(results: list, dry_run: bool):
     
     if conflicts > 0:
         console.print(f"[yellow]⚖️  {conflicts} agent conflicts successfully resolved[/yellow]")
+
+
+async def _process_inbox_batched(dry_run: bool, show_progress: bool, max_emails: int, batch_size: int):
+    """Process entire inbox using optimized collaborative batching."""
+    console.print(Panel.fit(
+        "[bold green]📧 Processing Entire Inbox with Collaborative Intelligence[/bold green]", 
+        border_style="green"
+    ))
+    
+    # Initialize components
+    console.print(f"\n[bold]Initializing Optimized Batch Processing...[/bold]")
+    console.print(f"[dim]Max emails: {max_emails} | Batch size: {batch_size} (optimized)[/dim]")
+    
+    try:
+        # Get Gmail credentials
+        import keyring
+        creds_json = keyring.get_password("email_agent", "gmail_credentials_default")
+        if not creds_json:
+            console.print("[red]❌ No Gmail credentials found. Run 'email-agent config gmail' first.[/red]")
+            return
+        
+        credentials = json.loads(creds_json)
+        
+        # Get total email count from database
+        db = DatabaseManager()
+        with db.get_session() as session:
+            from ...storage.models import EmailORM
+            total_emails = session.query(EmailORM).count()
+            
+            # Limit to max_emails if specified
+            process_limit = min(total_emails, max_emails)
+            total_batches = (process_limit + batch_size - 1) // batch_size  # Ceiling division
+            
+            console.print(f"[cyan]📊 Found {total_emails} total emails, processing {process_limit} in {total_batches} batches[/cyan]")
+        
+        # Initialize collaborative processor once
+        processor = CollaborativeEmailProcessor()
+        
+        # Process statistics tracking
+        overall_stats = {
+            'total_processed': 0,
+            'total_labeled': 0,
+            'total_conflicts': 0,
+            'batch_times': [],
+            'label_counts': defaultdict(int),
+            'priority_distribution': defaultdict(int),
+            'confidence_distribution': defaultdict(int)
+        }
+        
+        # Process emails in optimized batches
+        for batch_num in range(total_batches):
+            batch_start = batch_num * batch_size
+            current_batch_size = min(batch_size, process_limit - batch_start)
+            
+            console.print(f"\n[bold blue]🤝 Batch {batch_num + 1}/{total_batches} ({current_batch_size} emails)[/bold blue]")
+            
+            # Get batch emails
+            with db.get_session() as session:
+                emails_orm = session.query(EmailORM).order_by(EmailORM.date.desc()).offset(batch_start).limit(current_batch_size).all()
+                
+                emails = []
+                for e in emails_orm:
+                    email = Email(
+                        id=e.id,
+                        message_id=e.message_id,
+                        thread_id=e.thread_id,
+                        subject=e.subject,
+                        sender=EmailAddress(email=e.sender_email, name=e.sender_name),
+                        recipients=[],
+                        date=e.date,
+                        received_date=e.received_date,
+                        body_text=e.body_text or '',
+                        is_read=e.is_read,
+                        is_flagged=e.is_flagged,
+                        category=EmailCategory(e.category) if e.category else EmailCategory.PRIMARY,
+                        priority=EmailPriority(e.priority) if e.priority else EmailPriority.NORMAL,
+                        tags=json.loads(e.tags) if e.tags else []
+                    )
+                    emails.append(email)
+            
+            if not emails:
+                console.print("[yellow]No more emails to process[/yellow]")
+                break
+            
+            # Pre-build batch intelligence for efficiency (reset cache for each batch)
+            processor.reset_batch_cache()
+            await processor.prepare_batch_intelligence(emails)
+            
+            # Process batch collaboratively
+            import time
+            batch_start_time = time.time()
+            
+            batch_results = []
+            labels_to_apply = defaultdict(list)
+            
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                TaskProgressColumn(),
+                console=console
+            ) as progress:
+                
+                task = progress.add_task(f"🤝 Processing batch {batch_num + 1}...", total=len(emails))
+                
+                for email in emails:
+                    # Get collaborative decision
+                    decision = await processor.process_email_collaboratively(email)
+                    batch_results.append(decision)
+                    
+                    # Collect labels for application
+                    if decision.agreed_labels and not dry_run:
+                        labels_to_apply[email.id] = decision.agreed_labels
+                    
+                    # Update statistics
+                    overall_stats['priority_distribution'][decision.final_urgency] += 1
+                    if decision.consensus_confidence > 0.7:
+                        overall_stats['confidence_distribution']['high'] += 1
+                    elif decision.consensus_confidence > 0.5:
+                        overall_stats['confidence_distribution']['medium'] += 1
+                    else:
+                        overall_stats['confidence_distribution']['low'] += 1
+                    
+                    overall_stats['total_conflicts'] += len(decision.conflicts_resolved)
+                    
+                    for label in decision.agreed_labels:
+                        overall_stats['label_counts'][label] += 1
+                    
+                    progress.advance(task)
+            
+            # Apply labels for this batch if not dry run
+            batch_labeled = 0
+            if not dry_run and labels_to_apply:
+                batch_labeled = await _apply_collaborative_labels(credentials, db, dict(labels_to_apply))
+                overall_stats['total_labeled'] += batch_labeled
+            
+            # Update overall stats
+            overall_stats['total_processed'] += len(emails)
+            batch_time = time.time() - batch_start_time
+            overall_stats['batch_times'].append(batch_time)
+            
+            # Show batch summary
+            if show_progress:
+                batch_conflicts = sum(len(r.conflicts_resolved) for r in batch_results)
+                console.print(f"  ✅ Batch complete: {len(emails)} processed, {batch_labeled} labeled, {batch_conflicts} conflicts resolved ({batch_time:.1f}s)")
+            
+            # Brief pause between batches to avoid API rate limits
+            if batch_num < total_batches - 1:
+                await asyncio.sleep(1)
+        
+        # Display comprehensive final summary
+        await _display_inbox_processing_summary(overall_stats, dry_run, total_batches)
+        
+    except Exception as e:
+        console.print(f"[red]❌ Inbox processing failed: {e}[/red]")
+
+
+async def _apply_collaborative_labels(credentials: dict, db: DatabaseManager, labels_to_apply: dict) -> int:
+    """Apply collaborative labels to Gmail efficiently."""
+    try:
+        from googleapiclient.discovery import build
+        from google.oauth2.credentials import Credentials
+        
+        # Initialize Gmail service
+        creds = Credentials.from_authorized_user_info(credentials)
+        service = build('gmail', 'v1', credentials=creds)
+        
+        # Get all CEO labels
+        results = service.users().labels().list(userId='me').execute()
+        labels_result = results.get('labels', [])
+        label_map = {label['name']: label['id'] for label in labels_result if 'EmailAgent/CEO/' in label['name']}
+        
+        applied_count = 0
+        for email_id, labels in labels_to_apply.items():
+            try:
+                # Find Gmail message ID
+                with db.get_session() as session:
+                    from ...storage.models import EmailORM
+                    email_orm = session.query(EmailORM).filter(EmailORM.id == email_id).first()
+                    if email_orm and email_orm.message_id:
+                        # Search for the Gmail message
+                        query = f'rfc822msgid:{email_orm.message_id}'
+                        search_results = service.users().messages().list(userId='me', q=query).execute()
+                        
+                        if search_results.get('messages'):
+                            gmail_msg_id = search_results['messages'][0]['id']
+                            
+                            # Prepare labels to add
+                            labels_to_add = []
+                            for label_name in labels:
+                                full_label = f'EmailAgent/CEO/{label_name}'
+                                if full_label in label_map:
+                                    labels_to_add.append(label_map[full_label])
+                            
+                            # Apply labels
+                            if labels_to_add:
+                                body = {'addLabelIds': labels_to_add}
+                                service.users().messages().modify(
+                                    userId='me', id=gmail_msg_id, body=body
+                                ).execute()
+                                applied_count += 1
+            except Exception:
+                # Silently continue on individual failures
+                pass
+        
+        return applied_count
+        
+    except Exception:
+        return 0
+
+
+async def _display_inbox_processing_summary(stats: dict, dry_run: bool, total_batches: int):
+    """Display comprehensive summary of inbox processing."""
+    
+    console.print(f"\n[bold green]📊 Inbox Processing Complete![/bold green]")
+    
+    # Processing statistics
+    processing_table = Table(title="Processing Statistics")
+    processing_table.add_column("Metric", style="cyan")
+    processing_table.add_column("Value", style="magenta")
+    processing_table.add_column("Details", style="yellow")
+    
+    avg_batch_time = sum(stats['batch_times']) / len(stats['batch_times']) if stats['batch_times'] else 0
+    total_time = sum(stats['batch_times'])
+    
+    processing_table.add_row("Total Emails", str(stats['total_processed']), f"{total_batches} batches")
+    processing_table.add_row("Labels Applied", str(stats['total_labeled']), f"{stats['total_labeled']/stats['total_processed']:.1%} success rate" if stats['total_processed'] > 0 else "0%")
+    processing_table.add_row("Conflicts Resolved", str(stats['total_conflicts']), f"{stats['total_conflicts']/stats['total_processed']:.1f} avg per email" if stats['total_processed'] > 0 else "0")
+    processing_table.add_row("Processing Time", f"{total_time:.1f}s", f"{avg_batch_time:.1f}s avg per batch")
+    processing_table.add_row("Processing Rate", f"{stats['total_processed']/total_time:.1f} emails/sec" if total_time > 0 else "N/A", "Collaborative intelligence")
+    
+    console.print(processing_table)
+    
+    # Priority distribution
+    if stats['priority_distribution']:
+        console.print(f"\n[bold]🎯 Priority Distribution:[/bold]")
+        for priority, count in stats['priority_distribution'].items():
+            percentage = count / stats['total_processed'] * 100 if stats['total_processed'] > 0 else 0
+            color = {"critical": "red", "high": "yellow", "medium": "cyan", "low": "green"}.get(priority, "white")
+            console.print(f"  [{color}]{priority.title()}[/{color}]: {count} emails ({percentage:.1f}%)")
+    
+    # Confidence distribution
+    if stats['confidence_distribution']:
+        console.print(f"\n[bold]🤝 Agent Confidence Distribution:[/bold]")
+        for confidence, count in stats['confidence_distribution'].items():
+            percentage = count / stats['total_processed'] * 100 if stats['total_processed'] > 0 else 0
+            color = {"high": "green", "medium": "yellow", "low": "red"}.get(confidence, "white")
+            console.print(f"  [{color}]{confidence.title()} Confidence[/{color}]: {count} emails ({percentage:.1f}%)")
+    
+    # Most applied labels
+    if stats['label_counts']:
+        console.print(f"\n[bold]🏷️  Most Applied Labels:[/bold]")
+        sorted_labels = sorted(stats['label_counts'].items(), key=lambda x: x[1], reverse=True)
+        for label, count in sorted_labels[:10]:
+            console.print(f"  • {label}: {count} emails")
+    
+    # Final status
+    mode = "would be applied" if dry_run else "applied"
+    console.print(f"\n[bold green]✅ Collaborative decisions {mode} across {stats['total_processed']} emails![/bold green]")
+    
+    if stats['total_conflicts'] > 0:
+        console.print(f"[yellow]⚖️  {stats['total_conflicts']} agent conflicts successfully resolved through collaboration[/yellow]")
+    
+    console.print(f"\n[bold cyan]🧠 The collaborative agents worked together to intelligently process your entire inbox![/bold cyan]")
