@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  email-agent:
+    build: .
+    container_name: email-agent
+    restart: unless-stopped
+    
+    # Environment variables
+    environment:
+      - DATABASE_URL=sqlite:////app/data/email_agent.db
+      - LOG_FILE=/app/logs/agent.log
+      - BRIEF_OUTPUT_DIR=/app/briefs
+    
+    # Mount environment file
+    env_file:
+      - .env
+    
+    # Volume mounts for data persistence
+    volumes:
+      # Persistent data storage
+      - email_agent_data:/app/data
+      - email_agent_logs:/app/logs
+      - email_agent_briefs:/app/briefs
+      
+      # Optional: Mount host directories instead
+      # - ./data:/app/data
+      # - ./logs:/app/logs
+      # - ./briefs:/app/briefs
+      
+      # Optional: Mount credentials from host
+      # - ~/.email_agent:/home/email-agent/.email_agent
+    
+    # Network configuration
+    networks:
+      - email-agent-network
+    
+    # Keep container running for interactive use
+    stdin_open: true
+    tty: true
+    
+    # Default command - can be overridden
+    command: ["bash"]
+
+  # Optional: Add a web interface or API service
+  # email-agent-api:
+  #   build: .
+  #   container_name: email-agent-api
+  #   restart: unless-stopped
+  #   ports:
+  #     - "8000:8000"
+  #   env_file:
+  #     - .env
+  #   volumes:
+  #     - email_agent_data:/app/data
+  #   command: ["python", "-m", "email_agent.api", "--host", "0.0.0.0", "--port", "8000"]
+
+# Named volumes for data persistence
+volumes:
+  email_agent_data:
+    driver: local
+  email_agent_logs:
+    driver: local
+  email_agent_briefs:
+    driver: local
+
+# Network for service communication
+networks:
+  email-agent-network:
+    driver: bridge

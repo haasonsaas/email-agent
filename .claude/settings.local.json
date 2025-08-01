@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(pip install:*)",
+      "Bash(python3:*)",
+      "Bash(source:*)",
+      "Bash(pyrefly init:*)",
+      "Bash(pyrefly check:*)",
+      "Bash(gcloud config:*)",
+      "Bash(PROJECT_ID=\"email-agent-1754023493\")",
+      "Bash(echo \"Active project set to: $PROJECT_ID\")",
+      "Bash(gcloud services enable:*)",
+      "Bash(gcloud alpha iap oauth-brands list:*)",
+      "Bash(gcloud auth:*)",
+      "Bash(gcloud services list:*)",
+      "Bash(gcloud iam service-accounts create:*)",
+      "Bash(gcloud iam service-accounts keys create:*)",
+      "Bash(cp:*)",
+      "Bash(python:*)",
+      "Bash(rm:*)",
+      "Bash(email-agent version)",
+      "Bash(email-agent init:*)",
+      "Bash(grep:*)",
+      "Bash(email-agent connectors add:*)",
+      "Bash(email-agent:*)",
+      "Bash(timeout 5 email-agent:*)",
+      "Bash(find:*)"
+    ],
+    "deny": []
+  }
+}
