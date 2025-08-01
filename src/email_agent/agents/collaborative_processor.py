@@ -586,17 +586,120 @@ class CollaborativeEmailProcessor:
         }
         return mapping.get(agent_name, 'unknown')
     
+    def _consolidate_labels_intelligently(self, assessments: List[AgentAssessment], 
+                                        consensus: Dict[str, Any]) -> List[str]:
+        """Intelligently consolidate labels to minimize over-labeling."""
+        
+        # Define label hierarchy and conflicts
+        label_hierarchy = {
+            # Action labels (highest priority)
+            'DecisionRequired': {'priority': 10, 'conflicts': ['ReadLater', 'Delegatable']},
+            'SignatureRequired': {'priority': 10, 'conflicts': ['ReadLater', 'Delegatable']},
+            
+            # Relationship labels (high priority)
+            'Board': {'priority': 9, 'conflicts': ['Team', 'Customers', 'Vendors']},
+            'Investors': {'priority': 9, 'conflicts': ['Team', 'Customers', 'Vendors']},
+            'Customers': {'priority': 8, 'conflicts': ['Board', 'Investors', 'Team']},
+            
+            # Process labels (medium priority)
+            'QuickWins': {'priority': 7, 'conflicts': ['ReadLater']},
+            'KeyRelationships': {'priority': 6, 'conflicts': []},
+            'ThreadContinuity': {'priority': 6, 'conflicts': []},
+            
+            # Category labels (lower priority)
+            'Finance': {'priority': 5, 'conflicts': ['Legal', 'Product']},
+            'Legal': {'priority': 5, 'conflicts': ['Finance', 'Product']},
+            'Product': {'priority': 5, 'conflicts': ['Finance', 'Legal']},
+            'Team': {'priority': 4, 'conflicts': ['Board', 'Investors', 'Customers']},
+            'Vendors': {'priority': 4, 'conflicts': ['Board', 'Investors', 'Customers']},
+            
+            # Low priority labels
+            'Efficiency': {'priority': 3, 'conflicts': []},
+            'Networking': {'priority': 3, 'conflicts': []},
+            'PR-Marketing': {'priority': 3, 'conflicts': []},
+            'Delegatable': {'priority': 2, 'conflicts': ['DecisionRequired', 'SignatureRequired']},
+            'ReadLater': {'priority': 1, 'conflicts': ['DecisionRequired', 'SignatureRequired', 'QuickWins']}
+        }
+        
+        # Collect all suggested labels with their agent weights and confidence
+        label_votes = {}
+        for assessment in assessments:
+            agent_type = self._get_agent_type(assessment.agent_name)
+            agent_weight = self.agent_weights.get(agent_type, 0.15)
+            confidence_weight = assessment.confidence.value
+            final_weight = agent_weight * confidence_weight
+            
+            for label in assessment.suggested_labels:
+                if label not in label_votes:
+                    label_votes[label] = {'weight': 0, 'count': 0}
+                label_votes[label]['weight'] += final_weight
+                label_votes[label]['count'] += 1
+        
+        # Score and rank labels
+        label_scores = []
+        for label, votes in label_votes.items():
+            hierarchy_info = label_hierarchy.get(label, {'priority': 5, 'conflicts': []})
+            
+            # Calculate composite score: weighted votes * hierarchy priority
+            composite_score = votes['weight'] * hierarchy_info['priority']
+            
+            label_scores.append({
+                'label': label,
+                'score': composite_score,
+                'weight': votes['weight'],
+                'priority': hierarchy_info['priority'],
+                'conflicts': hierarchy_info['conflicts']
+            })
+        
+        # Sort by composite score (highest first)
+        label_scores.sort(key=lambda x: x['score'], reverse=True)
+        
+        # Select labels intelligently, avoiding conflicts
+        selected_labels = []
+        max_labels = self._determine_max_labels(consensus)
+        
+        for label_info in label_scores:
+            if len(selected_labels) >= max_labels:
+                break
+                
+            label = label_info['label']
+            conflicts = label_info['conflicts']
+            
+            # Check if this label conflicts with already selected labels
+            has_conflict = any(selected_label in conflicts for selected_label in selected_labels)
+            
+            if not has_conflict:
+                selected_labels.append(label)
+            elif label_info['priority'] >= 8:  # Force high-priority labels even with conflicts
+                # Remove conflicting lower-priority labels
+                selected_labels = [l for l in selected_labels if l not in conflicts]
+                selected_labels.append(label)
+        
+        # Log consolidation reasoning for transparency
+        if len(label_votes) > len(selected_labels):
+            dropped_labels = [label for label in label_votes.keys() if label not in selected_labels]
+            logger.debug(f"Label consolidation: kept {selected_labels}, dropped {dropped_labels}")
+        
+        return selected_labels
+    
+    def _determine_max_labels(self, consensus: Dict[str, Any]) -> int:
+        """Determine maximum number of labels based on email importance."""
+        priority_score = consensus['priority_score']
+        urgency = consensus['urgency']
+        
+        if urgency == 'critical' or priority_score > 0.8:
+            return 3  # High importance emails can have up to 3 labels
+        elif urgency == 'high' or priority_score > 0.6:
+            return 2  # Medium-high emails get up to 2 labels
+        else:
+            return 1  # Low priority emails get only 1 label
+    
     async def _finalize_decision(self, email: Email, assessments: List[AgentAssessment], 
                                consensus: Dict[str, Any], conflicts: List[str]) -> CollaborativeDecision:
         """Create final collaborative decision."""
         
-        # Combine all suggested labels
-        all_labels = []
-        for assessment in assessments:
-            all_labels.extend(assessment.suggested_labels)
-        
-        # Remove duplicates while preserving order
-        agreed_labels = list(dict.fromkeys(all_labels))
+        # Intelligent label consolidation to minimize over-labeling
+        agreed_labels = self._consolidate_labels_intelligently(assessments, consensus)
         
         # Generate reasoning summary
         reasoning_parts = []
