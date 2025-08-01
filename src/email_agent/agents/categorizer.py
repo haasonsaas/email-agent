@@ -11,8 +11,9 @@ except ImportError:
     AsyncOpenAI = None
 
 from ..config import settings
-from ..models import Email, EmailRule, EmailCategory
+from ..models import Email, EmailRule, EmailCategory, RuleCondition
 from ..rules import RulesEngine, BuiltinRules
+from ..rules.processors import create_rule_processor
 from ..sdk.exceptions import RuleError
 
 logger = logging.getLogger(__name__)
@@ -98,6 +99,53 @@ class CategorizerAgent:
         
         logger.info(f"Categorized {len(categorized_emails)} emails with {rules_applied_count} rule applications")
         return categorized_emails
+    
+    def _apply_rule_to_email(self, email: Email, rule: EmailRule) -> bool:
+        """Apply a single rule to an email (for testing)."""
+        try:
+            processor = create_rule_processor(rule)
+            if processor.applies(email):
+                processed_email = processor.execute(email)
+                # Copy the changes back to the original email
+                email.category = processed_email.category
+                email.priority = processed_email.priority
+                email.tags = processed_email.tags
+                return True
+            return False
+        except Exception as e:
+            logger.error(f"Error applying rule to email: {str(e)}")
+            return False
+    
+    def _matches_condition(self, email: Email, condition: RuleCondition) -> bool:
+        """Check if an email matches a rule condition (for testing)."""
+        try:
+            # Get the field value
+            field_value = getattr(email, condition.field, None)
+            if field_value is None:
+                return False
+            
+            # Convert to string for comparison
+            field_str = str(field_value).lower()
+            value_str = str(condition.value).lower()
+            
+            # Apply the operator
+            if condition.operator == "contains":
+                return value_str in field_str
+            elif condition.operator == "equals":
+                return field_str == value_str
+            elif condition.operator == "starts_with":
+                return field_str.startswith(value_str)
+            elif condition.operator == "ends_with":
+                return field_str.endswith(value_str)
+            elif condition.operator == "regex":
+                return bool(re.search(condition.value, str(field_value)))
+            else:
+                logger.warning(f"Unknown operator: {condition.operator}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error matching condition: {str(e)}")
+            return False
     
     async def _apply_ml_categorization(self, email: Email) -> Email:
         """Apply AI-based categorization using OpenAI."""

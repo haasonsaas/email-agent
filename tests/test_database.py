@@ -110,10 +110,13 @@ class TestDatabaseManager:
     def test_database_pagination(self, temp_db, sample_emails):
         """Test database pagination."""
         # Create more emails for pagination testing
-        emails = sample_emails * 10  # 30 emails total
-        for i, email in enumerate(emails):
+        emails = []
+        for i in range(30):  # Create 30 unique emails
+            base_email = sample_emails[i % len(sample_emails)]
+            email = base_email.model_copy(deep=True)
             email.id = f"test-email-{i}"
             email.message_id = f"msg-{i}"
+            emails.append(email)
         
         temp_db.save_emails(emails)
         

@@ -155,6 +155,15 @@ class CollectorAgent:
         
         return result
     
+    async def get_status(self) -> Dict[str, Any]:
+        """Get the current status of the collector agent."""
+        return {
+            "connectors": len(self.connectors),
+            "active_connectors": len(self.connectors),
+            "connector_types": list(self.connectors.keys()),
+            "stats": self.stats
+        }
+    
     async def get_connector_stats(self, connector_name: str) -> Dict[str, Any]:
         """Get statistics for a specific connector."""
         # Find connector in our instances
@@ -181,6 +190,7 @@ class CollectorAgent:
     async def get_status(self) -> Dict[str, Any]:
         """Get collector agent status."""
         return {
+            "connectors": len(self.connectors),
             "active_connectors": len(self.connectors),
             "stats": self.stats.copy(),
             "connector_types": list(set(

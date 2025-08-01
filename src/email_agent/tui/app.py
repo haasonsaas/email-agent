@@ -165,9 +165,9 @@ class DraftSuggestionsPanel(Vertical):
         with Horizontal():
             yield Button("✍️ Generate Drafts", id="generate-drafts-btn", variant="success")
             yield Select([
-                ("3", "3 suggestions"),
-                ("5", "5 suggestions"), 
-                ("7", "7 suggestions")
+                ("3 suggestions", "3"),
+                ("5 suggestions", "5"), 
+                ("7 suggestions", "7")
             ], value="3", id="num-drafts-select")
         
         yield Label("")
@@ -230,10 +230,10 @@ class FeedbackDialog(ModalScreen):
             yield Label("")
             yield Label("What should the correct triage decision be?")
             yield Select([
-                ("priority_inbox", "🔥 Priority Inbox"),
-                ("regular_inbox", "📥 Regular Inbox"),
-                ("auto_archive", "🗂️ Auto-Archive"),
-                ("spam_folder", "🕷️ Spam Folder")
+                ("🔥 Priority Inbox", "priority_inbox"),
+                ("📥 Regular Inbox", "regular_inbox"),
+                ("🗂️ Auto-Archive", "auto_archive"),
+                ("🕷️ Spam Folder", "spam_folder")
             ], id="feedback-decision-select")
             yield Label("")
             yield Input(placeholder="Additional feedback (optional)", id="feedback-comment")
@@ -473,10 +473,10 @@ class LogViewer(Vertical):
             yield Button("🔄 Refresh Logs", id="refresh-logs-btn", variant="primary")
             yield Button("🗑️ Clear Logs", id="clear-logs-btn")
             yield Select([
-                ("DEBUG", "Debug"),
-                ("INFO", "Info"),
-                ("WARNING", "Warning"), 
-                ("ERROR", "Error")
+                ("Debug", "DEBUG"),
+                ("Info", "INFO"),
+                ("Warning", "WARNING"), 
+                ("Error", "ERROR")
             ], value="INFO", id="log-level-select")
         
         yield Label("")
@@ -1066,6 +1066,24 @@ class EmailAgentTUI(App):
             self.pop_screen()
         elif event.button.id == "full-insights-btn":
             await self.action_show_full_insights()
+    
+    async def refresh_data(self) -> None:
+        """Refresh email data from database."""
+        try:
+            # Load emails
+            self.current_emails = self.db.get_emails(limit=100)
+            
+            # Update email list
+            email_list = self.query_one("#email-list", EmailList)
+            email_list.load_emails(self.current_emails)
+            
+            # Update stats
+            stats = self.db.get_email_stats()
+            sidebar = self.query_one("StatsSidebar", StatsSidebar)
+            sidebar.update_stats(stats)
+            
+        except Exception as e:
+            self.notify(f"Failed to refresh data: {str(e)}", severity="error")
     
     async def action_refresh(self) -> None:
         """Refresh data action."""

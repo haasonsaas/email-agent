@@ -16,8 +16,7 @@ from ..config import settings
 from ..storage import DatabaseManager
 from ..agents import EmailAgentCrew
 from ..models import ConnectorConfig, EmailCategory
-from .commands import init, pull, brief, rules, categories, config, status, inbox
-from .commands.drafts import drafts_group
+from .commands import init, pull, brief, rules, categories, config, status, inbox, drafts
 
 # Setup logging
 logging.basicConfig(level=getattr(logging, settings.log_level.upper()))
@@ -42,7 +41,7 @@ app.add_typer(categories.app, name="cat", help="View and manage email categories
 app.add_typer(config.app, name="config", help="Manage configuration and connectors")
 app.add_typer(status.app, name="status", help="View system status and statistics")
 app.add_typer(inbox.app, name="inbox", help="Smart inbox and AI triage management")
-app.add_typer(drafts_group, name="drafts", help="AI-powered draft suggestions and writing style analysis")
+app.add_typer(drafts.app, name="drafts", help="AI-powered draft suggestions and writing style analysis")
 
 
 @app.command()
@@ -50,6 +49,7 @@ def version():
     """Show version information."""
     from .. import __version__
     console.print(f"Email Agent v{__version__}")
+    raise typer.Exit(0)
 
 
 @app.command()
@@ -271,6 +271,27 @@ def triage_stats():
     """Show triage statistics and performance metrics."""
     from .commands.inbox import _triage_stats
     asyncio.run(_triage_stats())
+
+
+@app.command()
+def dashboard():
+    """Launch the interactive TUI dashboard."""
+    from ..tui.app import EmailAgentTUI
+    from textual.app import App
+    
+    try:
+        app = EmailAgentTUI()
+        app.run()
+    except Exception as e:
+        console.print(f"[red]Failed to launch dashboard: {str(e)}[/red]")
+        raise typer.Exit(1)
+
+
+def run_tui():
+    """Run the TUI application (for testing)."""
+    from ..tui.app import EmailAgentTUI
+    app = EmailAgentTUI()
+    app.run()
 
 
 if __name__ == "__main__":

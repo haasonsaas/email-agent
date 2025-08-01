@@ -292,7 +292,7 @@ def display_brief_markdown(brief):
 def display_brief_json(brief):
     """Display brief in JSON format."""
     import json
-    brief_dict = brief.dict()
+    brief_dict = brief.model_dump()
     console.print(json.dumps(brief_dict, indent=2, default=str))
 
 
@@ -332,7 +332,7 @@ def save_brief_to_file(brief, format: str):
         elif format == "json":
             filename = f"{date_str}.json"
             import json
-            content = json.dumps(brief.dict(), indent=2, default=str)
+            content = json.dumps(brief.model_dump(), indent=2, default=str)
         else:
             filename = f"{date_str}.txt"
             content = create_text_content(brief)

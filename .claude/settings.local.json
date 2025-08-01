@@ -26,7 +26,8 @@
       "Bash(email-agent connectors add:*)",
       "Bash(email-agent:*)",
       "Bash(timeout 5 email-agent:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(git add:*)"
     ],
     "deny": []
   }

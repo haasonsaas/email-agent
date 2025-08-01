@@ -39,7 +39,7 @@ class RulesEngine:
     
     def process_email(self, email: Email) -> Email:
         """Process an email through all rules."""
-        processed_email = email.copy(deep=True)
+        processed_email = email.model_copy(deep=True)
         
         for rule in self.rules:
             try:

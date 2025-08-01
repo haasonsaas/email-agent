@@ -4,7 +4,7 @@ import asyncio
 import json
 from typing import Optional, List
 
-import click
+import typer
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
@@ -15,41 +15,39 @@ from ...storage.database import DatabaseManager
 from ...models import Email
 
 console = Console()
+app = typer.Typer()
 
 
-@click.group(name="drafts")
-def drafts_group():
-    """AI-powered draft suggestions and writing style analysis."""
-    pass
-
-
-@drafts_group.command()
-@click.option('--email-id', required=True, help='ID of the email to respond to')
-@click.option('--num-suggestions', default=3, help='Number of draft suggestions to generate')
-@click.option('--context', default='reply', help='Context for the draft (reply, forward, new)')
-def generate(email_id: str, num_suggestions: int, context: str):
+@app.command()
+def generate(
+    email_id: str = typer.Option(..., help="ID of the email to respond to"),
+    num_suggestions: int = typer.Option(3, help="Number of draft suggestions to generate"),
+    context: str = typer.Option("reply", help="Context for the draft (reply, forward, new)")
+):
     """Generate draft suggestions for responding to an email."""
     asyncio.run(_generate_drafts(email_id, num_suggestions, context))
 
 
-@drafts_group.command()
-@click.option('--force-refresh', is_flag=True, help='Force refresh of writing style analysis')
-@click.option('--min-emails', default=10, help='Minimum number of sent emails to analyze')
-def analyze_style(force_refresh: bool, min_emails: int):
+@app.command()
+def analyze_style(
+    force_refresh: bool = typer.Option(False, "--force-refresh", help="Force refresh of writing style analysis"),
+    min_emails: int = typer.Option(10, help="Minimum number of sent emails to analyze")
+):
     """Analyze your writing style from sent emails."""
     asyncio.run(_analyze_writing_style(force_refresh, min_emails))
 
 
-@drafts_group.command()
+@app.command()
 def style_summary():
     """Show summary of current writing style analysis."""
     asyncio.run(_show_style_summary())
 
 
-@drafts_group.command()
-@click.option('--email-id', required=True, help='ID of the email to respond to')
-@click.option('--draft-index', default=0, help='Index of the draft suggestion to use (0-based)')
-def use_draft(email_id: str, draft_index: int):
+@app.command()
+def use_draft(
+    email_id: str = typer.Option(..., help="ID of the email to respond to"),
+    draft_index: int = typer.Option(0, help="Index of the draft suggestion to use (0-based)")
+):
     """Use a draft suggestion and copy it to clipboard or save as draft."""
     asyncio.run(_use_draft_suggestion(email_id, draft_index))
 
@@ -320,8 +318,3 @@ async def _use_draft_suggestion(email_id: str, draft_index: int):
         console.print(f"[red]Error using draft suggestion: {str(e)}[/red]")
 
 
-# Add the commands to the group
-drafts_group.add_command(generate)
-drafts_group.add_command(analyze_style)
-drafts_group.add_command(style_summary)
-drafts_group.add_command(use_draft)

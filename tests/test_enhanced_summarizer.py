@@ -201,7 +201,7 @@ class TestNarrativeGeneration:
         analysis = {
             "total_emails": len(sample_emails),
             "unread_emails": 2,
-            "priorities": {"high": 2, "normal": 1}
+            "priorities": {"urgent": 1, "high": 1, "normal": 1}
         }
         
         headline = enhanced_summarizer._create_rule_based_headline(sample_emails, analysis)

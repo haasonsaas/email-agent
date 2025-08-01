@@ -556,7 +556,7 @@ class AdvancedRuleEngine(RulesEngine):
                 "id": rule.id,
                 "name": rule.name,
                 "description": rule.description,
-                "conditions": [cond.dict() for cond in rule.conditions],
+                "conditions": [cond.model_dump() for cond in rule.conditions],
                 "actions": rule.actions,
                 "enabled": rule.enabled,
                 "priority": rule.priority,

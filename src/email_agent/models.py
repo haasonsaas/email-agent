@@ -4,7 +4,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class EmailCategory(str, Enum):
@@ -86,7 +86,8 @@ class Email(BaseModel):
     raw_headers: Dict[str, Any] = Field(default_factory=dict)
     connector_data: Dict[str, Any] = Field(default_factory=dict)
 
-    @validator('date', 'received_date', pre=True)
+    @field_validator('date', 'received_date', mode='before')
+    @classmethod
     def parse_datetime(cls, v):
         if isinstance(v, str):
             return datetime.fromisoformat(v.replace('Z', '+00:00'))
