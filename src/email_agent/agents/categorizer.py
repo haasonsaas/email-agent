@@ -1,9 +1,16 @@
 """Categorizer agent for email organization and rule processing."""
 
+import json
 import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+try:
+    from openai import AsyncOpenAI
+except ImportError:
+    AsyncOpenAI = None
+
+from ..config import settings
 from ..models import Email, EmailRule, EmailCategory
 from ..rules import RulesEngine, BuiltinRules
 from ..sdk.exceptions import RuleError
@@ -16,13 +23,16 @@ class CategorizerAgent:
     
     def __init__(self):
         self.rules_engine = RulesEngine()
+        self.openai_client: Optional[AsyncOpenAI] = None
         self.stats: Dict[str, Any] = {
             "emails_processed": 0,
             "rules_applied": 0,
+            "ai_categorizations": 0,
             "categorization_accuracy": 0.0,
             "last_processing": None
         }
         self._initialize_builtin_rules()
+        self._initialize_ai_client()
     
     def _initialize_builtin_rules(self):
         """Initialize with built-in categorization rules."""
@@ -32,6 +42,17 @@ class CategorizerAgent:
             logger.info(f"Loaded {len(builtin_rules)} built-in rules")
         except Exception as e:
             logger.error(f"Failed to load built-in rules: {str(e)}")
+    
+    def _initialize_ai_client(self) -> None:
+        """Initialize OpenAI client for AI categorization."""
+        try:
+            if AsyncOpenAI and settings.openai_api_key:
+                self.openai_client = AsyncOpenAI(api_key=settings.openai_api_key)
+                logger.info("OpenAI client initialized for categorization")
+            else:
+                logger.warning("No OpenAI API key provided - AI categorization disabled")
+        except Exception as e:
+            logger.error(f"Failed to initialize OpenAI client: {str(e)}")
     
     async def categorize_emails(
         self, 
@@ -79,13 +100,17 @@ class CategorizerAgent:
         return categorized_emails
     
     async def _apply_ml_categorization(self, email: Email) -> Email:
-        """Apply ML-based categorization (placeholder for future ML integration)."""
-        # This is where we would integrate with ML models for categorization
-        # For now, we'll use simple heuristics
-        
+        """Apply AI-based categorization using OpenAI."""
         try:
-            # Simple heuristic: if no category was set by rules, try to infer
-            if email.category == EmailCategory.PRIMARY:
+            # If OpenAI is available, use AI for intelligent categorization
+            if self.openai_client and (email.category == EmailCategory.PRIMARY or not email.category):
+                ai_category = await self._categorize_with_ai(email)
+                if ai_category:
+                    email.category = ai_category
+                    self.stats["ai_categorizations"] += 1
+            
+            # Fallback to rule-based categorization
+            elif email.category == EmailCategory.PRIMARY:
                 email.category = self._infer_category_from_content(email)
             
             return email
@@ -93,6 +118,102 @@ class CategorizerAgent:
         except Exception as e:
             logger.error(f"ML categorization failed for email {email.id}: {str(e)}")
             return email
+    
+    async def _categorize_with_ai(self, email: Email) -> Optional[EmailCategory]:
+        """Categorize email using OpenAI."""
+        try:
+            # Prepare email data for analysis
+            email_content = {
+                "subject": email.subject,
+                "sender": email.sender.email,
+                "body_preview": (email.body_text or "")[:500] + "..." if email.body_text else ""
+            }
+            
+            # Create categorization prompt
+            prompt = self._create_categorization_prompt(email_content)
+            
+            # Call OpenAI API
+            response = await self.openai_client.chat.completions.create(
+                model=settings.openai_model,
+                messages=[
+                    {"role": "system", "content": "You are an expert email categorization system. Analyze emails and assign them to the most appropriate category."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=100,
+                temperature=0.1
+            )
+            
+            content = response.choices[0].message.content.strip().lower()
+            
+            # Parse the AI response
+            category = self._parse_ai_category_response(content)
+            
+            if category:
+                logger.debug(f"AI categorized email {email.id} as {category.value}")
+                return category
+            
+        except Exception as e:
+            logger.error(f"AI categorization failed for email {email.id}: {str(e)}")
+        
+        return None
+    
+    def _create_categorization_prompt(self, email_content: Dict[str, str]) -> str:
+        """Create prompt for AI categorization."""
+        categories = [cat.value for cat in EmailCategory]
+        
+        return f"""
+Categorize this email into one of the following categories: {', '.join(categories)}
+
+Email Details:
+- Subject: {email_content['subject']}
+- From: {email_content['sender']}
+- Preview: {email_content['body_preview']}
+
+Categories:
+- primary: Important personal or business emails that require attention
+- social: Social media notifications, friend updates, social platforms
+- promotions: Marketing emails, sales, offers, advertisements
+- updates: Newsletters, automated updates, news subscriptions
+- forums: Forum notifications, community discussions, mailing lists
+- spam: Unwanted or suspicious emails
+
+Return only the category name (e.g., "primary", "social", "promotions", etc.).
+"""
+    
+    def _parse_ai_category_response(self, response: str) -> Optional[EmailCategory]:
+        """Parse AI response and return EmailCategory."""
+        response = response.strip().lower()
+        
+        # Try to match exact category names
+        for category in EmailCategory:
+            if category.value in response:
+                return category
+        
+        # Try to match common variations
+        category_mappings = {
+            "business": EmailCategory.PRIMARY,
+            "work": EmailCategory.PRIMARY,
+            "personal": EmailCategory.PRIMARY,
+            "important": EmailCategory.PRIMARY,
+            "marketing": EmailCategory.PROMOTIONS,
+            "advertisement": EmailCategory.PROMOTIONS,
+            "sales": EmailCategory.PROMOTIONS,
+            "newsletter": EmailCategory.UPDATES,
+            "news": EmailCategory.UPDATES,
+            "notification": EmailCategory.UPDATES,
+            "forum": EmailCategory.FORUMS,
+            "discussion": EmailCategory.FORUMS,
+            "community": EmailCategory.FORUMS,
+            "facebook": EmailCategory.SOCIAL,
+            "twitter": EmailCategory.SOCIAL,
+            "linkedin": EmailCategory.SOCIAL,
+        }
+        
+        for keyword, category in category_mappings.items():
+            if keyword in response:
+                return category
+        
+        return None
     
     def _infer_category_from_content(self, email: Email) -> EmailCategory:
         """Infer category from email content using simple heuristics."""
@@ -283,6 +404,8 @@ class CategorizerAgent:
         engine_stats = self.rules_engine.get_stats()
         
         return {
+            "ai_enabled": self.openai_client is not None,
+            "ai_model": settings.openai_model if self.openai_client else None,
             "rules_loaded": engine_stats["total_rules"],
             "enabled_rules": engine_stats["enabled_rules"],
             "rule_types": engine_stats["rule_types"],
