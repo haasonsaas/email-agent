@@ -17,6 +17,8 @@ from .summarizer import SummarizerAgent
 from .sentiment_analyzer import SentimentAnalyzer
 from .thread_analyzer import ThreadAnalyzer
 from .triage_agent import TriageAgent
+from .draft_agent import DraftAgent
+from .enhanced_summarizer import EnhancedSummarizerAgent
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +36,8 @@ class EmailAgentCrew(BaseCrewAdapter):
         self.sentiment_analyzer: SentimentAnalyzer = SentimentAnalyzer()
         self.thread_analyzer: ThreadAnalyzer = ThreadAnalyzer()
         self.triage_agent: TriageAgent = TriageAgent()
+        self.draft_agent: DraftAgent = DraftAgent()
+        self.enhanced_summarizer: EnhancedSummarizerAgent = EnhancedSummarizerAgent()
     
     async def initialize_crew(self, agents_config: Dict[str, Any]) -> None:
         """Initialize the agent crew with configuration."""
@@ -113,6 +117,12 @@ class EmailAgentCrew(BaseCrewAdapter):
                 return await self._execute_triage_task(**kwargs)
             elif task_name == "smart_inbox":
                 return await self._execute_smart_inbox_task(**kwargs)
+            elif task_name == "generate_drafts":
+                return await self._execute_draft_generation_task(**kwargs)
+            elif task_name == "analyze_writing_style":
+                return await self._execute_writing_style_task(**kwargs)
+            elif task_name == "generate_narrative_brief":
+                return await self._execute_narrative_brief_task(**kwargs)
             else:
                 raise AgentError(f"Unknown task: {task_name}")
                 
@@ -412,6 +422,157 @@ class EmailAgentCrew(BaseCrewAdapter):
         logger.info(f"Created smart inbox: {smart_inbox['stats']['priority_count']} priority, {smart_inbox['stats']['regular_count']} regular")
         return smart_inbox
     
+    async def _execute_draft_generation_task(self, **kwargs) -> Dict[str, Any]:
+        """Execute draft generation task."""
+        original_email = kwargs.get('original_email')
+        context = kwargs.get('context', 'reply')
+        num_suggestions = kwargs.get('num_suggestions', 3)
+        
+        if not original_email:
+            return {"error": "No original email provided for draft generation"}
+        
+        # Create draft generation task
+        task = Task(
+            description=f"Generate {num_suggestions} draft suggestions for responding to email: {original_email.subject}",
+            agent=self.agents.get("summarizer"),  # Use summarizer agent for CrewAI
+            expected_output="Draft suggestions with confidence scores and style analysis"
+        )
+        
+        # Execute draft generation using our custom agent logic
+        draft_suggestions = self.draft_agent.generate_draft_suggestions(
+            original_email, 
+            context, 
+            num_suggestions
+        )
+        
+        # Format results
+        results = {
+            "original_email_id": original_email.id,
+            "original_subject": original_email.subject,
+            "context": context,
+            "suggestions": [
+                {
+                    "subject": suggestion.subject,
+                    "body": suggestion.body,
+                    "confidence": suggestion.confidence,
+                    "style_match": suggestion.style_match,
+                    "suggested_tone": suggestion.suggested_tone,
+                    "estimated_length": suggestion.estimated_length,
+                    "reasoning": suggestion.reasoning,
+                    "key_points": suggestion.key_points,
+                    "template_used": suggestion.template_used
+                }
+                for suggestion in draft_suggestions
+            ],
+            "total_suggestions": len(draft_suggestions)
+        }
+        
+        logger.info(f"Generated {len(draft_suggestions)} draft suggestions for email: {original_email.id}")
+        return results
+    
+    async def _execute_writing_style_task(self, **kwargs) -> Dict[str, Any]:
+        """Execute writing style analysis task."""
+        sent_emails = kwargs.get('sent_emails', [])
+        force_refresh = kwargs.get('force_refresh', False)
+        
+        if not sent_emails:
+            return {"error": "No sent emails provided for writing style analysis"}
+        
+        # Check if we need to refresh the analysis
+        if not force_refresh and not self.draft_agent.should_refresh_style():
+            return self.draft_agent.get_style_summary()
+        
+        # Create writing style analysis task
+        task = Task(
+            description=f"Analyze writing style from {len(sent_emails)} sent emails",
+            agent=self.agents.get("summarizer"),  # Use summarizer agent for CrewAI
+            expected_output="Writing style profile with patterns and preferences"
+        )
+        
+        # Execute writing style analysis using our custom agent logic
+        writing_style = self.draft_agent.analyze_writing_style(sent_emails)
+        
+        # Format results
+        results = {
+            "analysis_completed": True,
+            "emails_analyzed": len(sent_emails),
+            "avg_length": writing_style.avg_length,
+            "formality_score": writing_style.formality_score,
+            "greeting_style": writing_style.greeting_style,
+            "closing_style": writing_style.closing_style,
+            "sentence_complexity": writing_style.sentence_complexity,
+            "common_phrases": writing_style.common_phrases,
+            "tone_keywords": writing_style.tone_keywords,
+            "punctuation_style": writing_style.punctuation_style,
+            "preferred_times": writing_style.preferred_times,
+            "style_summary": self.draft_agent.get_style_summary()
+        }
+        
+        logger.info(f"Analyzed writing style from {len(sent_emails)} sent emails")
+        return results
+    
+    async def _execute_narrative_brief_task(self, **kwargs) -> Dict[str, Any]:
+        """Execute narrative brief generation task."""
+        emails = kwargs.get('emails', [])
+        target_date = kwargs.get('target_date', datetime.now().date())
+        context = kwargs.get('context', {})
+        
+        if not emails:
+            return {"error": "No emails provided for narrative brief generation"}
+        
+        # Create narrative brief generation task
+        task = Task(
+            description=f"Generate narrative-style brief for {target_date} from {len(emails)} emails",
+            agent=self.agents.get("summarizer"),  # Use summarizer agent for CrewAI
+            expected_output="Narrative brief with story-like structure and <60 second reading time"
+        )
+        
+        # Execute narrative brief generation using our enhanced agent
+        brief = await self.enhanced_summarizer.generate_narrative_brief(
+            emails, 
+            target_date, 
+            context
+        )
+        
+        # Extract narrative metadata from summary
+        import json
+        narrative_summary = brief.summary
+        narrative_metadata = {}
+        
+        if "---NARRATIVE_METADATA---" in brief.summary:
+            parts = brief.summary.split("---NARRATIVE_METADATA---")
+            narrative_summary = parts[0].strip()
+            try:
+                narrative_metadata = json.loads(parts[1].strip())
+            except json.JSONDecodeError:
+                narrative_metadata = {}
+        
+        # Format results
+        results = {
+            "brief_generated": True,
+            "target_date": target_date.isoformat(),
+            "emails_processed": len(emails),
+            "brief": {
+                "headline": brief.headline,
+                "summary": narrative_summary,
+                "action_items": brief.action_items,
+                "deadlines": brief.deadlines,
+                "key_threads": brief.key_threads,
+                "categories": brief.categories,
+                "priorities": brief.priorities,
+                "estimated_reading_time": narrative_metadata.get("estimated_reading_time", 45),
+                "narrative_score": narrative_metadata.get("narrative_score", 0.8),
+                "story_arcs": narrative_metadata.get("story_arcs", []),
+                "key_characters": narrative_metadata.get("key_characters", []),
+                "themes": narrative_metadata.get("themes", [])
+            },
+            "model_used": brief.model_used,
+            "processing_time": brief.processing_time
+        }
+        
+        logger.info(f"Generated narrative brief for {target_date}: {results['brief']['estimated_reading_time']}s read")
+        return results
+    
     async def get_agent_status(self, agent_name: str) -> Dict[str, Any]:
         """Get the status of a specific agent."""
         if agent_name not in self.agents:
@@ -442,6 +603,10 @@ class EmailAgentCrew(BaseCrewAdapter):
             status.update(await self.thread_analyzer.get_status())
         elif agent_name == "triage_agent":
             status.update(await self.triage_agent.get_status())
+        elif agent_name == "draft_agent":
+            status.update({"writing_style_analyzed": self.draft_agent.writing_style is not None})
+        elif agent_name == "enhanced_summarizer":
+            status.update(await self.enhanced_summarizer.get_status())
         
         return status
     
@@ -460,6 +625,12 @@ class EmailAgentCrew(BaseCrewAdapter):
                 await self.thread_analyzer.shutdown()
             if self.triage_agent:
                 await self.triage_agent.shutdown()
+            if self.draft_agent:
+                # Draft agent doesn't need async shutdown
+                pass
+            if self.enhanced_summarizer:
+                # Enhanced summarizer doesn't need async shutdown
+                pass
             
             self.crew = None
             self.agents.clear()

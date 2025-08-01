@@ -17,6 +17,7 @@ from ..storage import DatabaseManager
 from ..agents import EmailAgentCrew
 from ..models import ConnectorConfig, EmailCategory
 from .commands import init, pull, brief, rules, categories, config, status, inbox
+from .commands.drafts import drafts_group
 
 # Setup logging
 logging.basicConfig(level=getattr(logging, settings.log_level.upper()))
@@ -40,6 +41,7 @@ app.add_typer(rules.app, name="rule", help="Manage categorization rules")
 app.add_typer(categories.app, name="cat", help="View and manage email categories")
 app.add_typer(config.app, name="config", help="Manage configuration and connectors")
 app.add_typer(status.app, name="status", help="View system status and statistics")
+app.add_typer(drafts_group, name="drafts", help="AI-powered draft suggestions and writing style analysis")
 
 
 @app.command()

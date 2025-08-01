@@ -6,7 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-from sqlalchemy import create_engine, and_, or_, desc, asc
+from sqlalchemy import create_engine, and_, or_, desc, asc, func
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -169,6 +169,49 @@ class DatabaseManager:
                 
         except SQLAlchemyError as e:
             logger.error(f"Failed to get emails: {str(e)}")
+            return []
+    
+    def get_sent_emails(self, limit: int = 100, user_email: Optional[str] = None) -> List[Email]:
+        """Get sent emails for writing style analysis."""
+        try:
+            with self.get_session() as session:
+                query = session.query(EmailORM)
+                
+                # Filter for sent emails (drafts or emails from specific sender)
+                if user_email:
+                    # If we know the user's email, filter by sender
+                    query = query.filter(EmailORM.sender_email == user_email)
+                else:
+                    # Otherwise, look for drafts or emails from known personal domains
+                    # This is a heuristic - in practice, you'd want to configure this
+                    query = query.filter(
+                        or_(
+                            EmailORM.is_draft == True,
+                            EmailORM.sender_email.like('%@gmail.com'),  # Common personal domains
+                            EmailORM.sender_email.like('%@outlook.com'),
+                            EmailORM.sender_email.like('%@yahoo.com'),
+                            EmailORM.sender_email.like('%@icloud.com')
+                        )
+                    )
+                
+                # Filter for substantial content (not auto-replies or very short emails)
+                query = query.filter(
+                    and_(
+                        EmailORM.body_text.isnot(None),
+                        func.length(EmailORM.body_text) > 50  # At least 50 characters
+                    )
+                )
+                
+                # Order by date (newest first)
+                query = query.order_by(desc(EmailORM.date))
+                
+                # Apply limit
+                email_orms = query.limit(limit).all()
+                
+                return [self._orm_to_email(orm) for orm in email_orms]
+                
+        except SQLAlchemyError as e:
+            logger.error(f"Failed to get sent emails: {str(e)}")
             return []
     
     def get_email_stats(self) -> Dict[str, Any]:

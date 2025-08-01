@@ -10,7 +10,8 @@ from ..models import Email, EmailRule, BriefTemplate
 class BaseAgent(ABC):
     """Base class for Email Agent components."""
     
-    def __init__(self):
+    def __init__(self, config: Dict[str, Any] = None):
+        self.config = config or {}
         self.stats = {}
     
     @abstractmethod
