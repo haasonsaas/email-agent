@@ -11,6 +11,7 @@ Welcome to the Email Agent documentation! This guide will help you get started w
 ### ✨ Features
 - [`FEATURES.md`](features/FEATURES.md) - Core features and capabilities
 - [`ADVANCED_FEATURES.md`](features/ADVANCED_FEATURES.md) - Advanced features and configuration
+- [`ADVANCED_ROADMAP.md`](features/ADVANCED_ROADMAP.md) - Future development plans
 
 ### 💻 Usage
 - [`cli.md`](usage/cli.md) - Command line interface guide
@@ -22,12 +23,21 @@ Welcome to the Email Agent documentation! This guide will help you get started w
 - [`contributing.md`](development/contributing.md) - Contributing guidelines
 - [`testing.md`](development/testing.md) - Testing guide
 
+### 📋 Project Information
+- [`PHASE_1_COMPLETION_SUMMARY.md`](project/PHASE_1_COMPLETION_SUMMARY.md) - Phase 1 development summary
+- [`ROADMAP.md`](project/ROADMAP.md) - Overall project roadmap
+
+### 🤖 Advanced Topics
+- [`advanced_ai_features.md`](advanced_ai_features.md) - AI system deep dive
+
 ## 🔗 Quick Links
 
 - [Main README](../README.md) - Project overview and quick start
 - [Installation Guide](setup/setup_gmail_oauth.md) - Get up and running
 - [CLI Commands](usage/cli.md) - Command reference
 - [TUI Dashboard](usage/tui.md) - Dashboard usage
+- [Example Scripts](../scripts/examples/) - Usage examples
+- [Utility Scripts](../scripts/utilities/) - Maintenance tools
 
 ## 📞 Support
 
