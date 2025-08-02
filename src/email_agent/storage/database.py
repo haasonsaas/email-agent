@@ -226,7 +226,7 @@ class DatabaseManager:
         try:
             with self.get_session() as session:
                 total = session.query(EmailORM).count()
-                unread = session.query(EmailORM).filter(not EmailORM.is_read).count()
+                unread = session.query(EmailORM).filter(EmailORM.is_read == False).count()
                 flagged = session.query(EmailORM).filter(EmailORM.is_flagged).count()
 
                 # Category counts

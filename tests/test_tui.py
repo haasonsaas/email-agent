@@ -183,10 +183,17 @@ class TestEmailAgentTUI:
             
             mock_email_list = Mock()
             mock_sidebar = Mock()
-            mock_query.side_effect = lambda selector, widget_type=None: {
-                "#email-list": mock_email_list,
-                "StatsSidebar": mock_sidebar
-            }.get(selector, Mock())
+            
+            def mock_query_side_effect(selector, widget_type=None):
+                from email_agent.tui.app import StatsSidebar
+                if selector == "#email-list":
+                    return mock_email_list
+                elif selector == StatsSidebar or selector == "StatsSidebar":
+                    return mock_sidebar
+                else:
+                    return Mock()
+            
+            mock_query.side_effect = mock_query_side_effect
             
             await app.refresh_data()
             
