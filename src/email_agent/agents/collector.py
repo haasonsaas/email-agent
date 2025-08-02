@@ -187,17 +187,6 @@ class CollectorAgent:
             logger.error(f"Failed to refresh auth for {config.name}: {str(e)}")
             return False
     
-    async def get_status(self) -> Dict[str, Any]:
-        """Get collector agent status."""
-        return {
-            "connectors": len(self.connectors),
-            "active_connectors": len(self.connectors),
-            "stats": self.stats.copy(),
-            "connector_types": list(set(
-                conn.connector_type for conn in self.connectors.values()
-            ))
-        }
-    
     async def shutdown(self) -> None:
         """Shutdown the collector agent."""
         try:

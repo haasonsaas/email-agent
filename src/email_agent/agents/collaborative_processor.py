@@ -4,10 +4,10 @@ import asyncio
 import logging
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Any
 from enum import Enum
 
-from ..models import Email, EmailAddress, EmailCategory, EmailPriority
+from ..models import Email
 from .enhanced_ceo_labeler import EnhancedCEOLabeler
 from .relationship_intelligence import RelationshipIntelligence
 from .thread_intelligence import ThreadIntelligence
@@ -672,7 +672,7 @@ class CollaborativeEmailProcessor:
                 selected_labels.append(label)
             elif label_info['priority'] >= 8:  # Force high-priority labels even with conflicts
                 # Remove conflicting lower-priority labels
-                selected_labels = [l for l in selected_labels if l not in conflicts]
+                selected_labels = [label_item for label_item in selected_labels if label_item not in conflicts]
                 selected_labels.append(label)
         
         # Log consolidation reasoning for transparency

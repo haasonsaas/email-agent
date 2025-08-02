@@ -1,6 +1,6 @@
 """Categorizer agent for email organization and rule processing."""
 
-import json
+import re
 import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -14,7 +14,6 @@ from ..config import settings
 from ..models import Email, EmailRule, EmailCategory, RuleCondition
 from ..rules import RulesEngine, BuiltinRules
 from ..rules.processors import create_rule_processor
-from ..sdk.exceptions import RuleError
 
 logger = logging.getLogger(__name__)
 

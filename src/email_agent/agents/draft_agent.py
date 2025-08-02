@@ -3,13 +3,13 @@
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 import re
 import statistics
 
 from openai import OpenAI
 
-from ..models import Email, EmailAddress
+from ..models import Email
 from ..sdk.base import BaseAgent
 
 

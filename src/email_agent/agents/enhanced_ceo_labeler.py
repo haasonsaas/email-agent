@@ -6,7 +6,7 @@ import json
 import re
 from datetime import datetime, timedelta
 from collections import defaultdict, Counter
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from .ceo_assistant import CEOAssistantAgent
 from ..storage.database import DatabaseManager
@@ -472,7 +472,7 @@ async def enhanced_label_emails(limit: int = 200, dry_run: bool = False):
                                         userId='me', id=gmail_msg_id, body=body
                                     ).execute()
                                     stats['labeled'] += 1
-                        except:
+                        except Exception:
                             stats['gmail_errors'] += 1
                     
                     # Show intelligent insights

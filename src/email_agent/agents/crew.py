@@ -136,7 +136,7 @@ class EmailAgentCrew(BaseCrewAdapter):
         since = kwargs.get('since')
         
         # Create collection task
-        task = Task(
+        Task(
             description=f"Collect emails from {len(connector_configs)} connectors since {since}",
             agent=self.agents["collector"],
             expected_output="List of collected emails with metadata"
@@ -157,7 +157,7 @@ class EmailAgentCrew(BaseCrewAdapter):
             return []
         
         # Create categorization task
-        task = Task(
+        Task(
             description=f"Categorize {len(emails)} emails using {len(rules)} rules",
             agent=self.agents["categorizer"],
             expected_output="List of categorized emails with updated metadata"
@@ -175,7 +175,7 @@ class EmailAgentCrew(BaseCrewAdapter):
         date = kwargs.get('date', datetime.now().date())
         
         # Create brief generation task
-        task = Task(
+        Task(
             description=f"Generate daily brief for {date} from {len(emails)} emails",
             agent=self.agents["summarizer"],
             expected_output="Daily brief with summary, action items, and key threads"
@@ -251,7 +251,7 @@ class EmailAgentCrew(BaseCrewAdapter):
             raise AgentError("No email provided for summarization")
         
         # Create summary task
-        task = Task(
+        Task(
             description=f"Summarize email: {email.subject}",
             agent=self.agents["summarizer"],
             expected_output="Email summary with action items"
@@ -272,7 +272,7 @@ class EmailAgentCrew(BaseCrewAdapter):
             return []
         
         # Create filtering task
-        task = Task(
+        Task(
             description=f"Filter {len(emails)} emails based on query: '{query}'",
             agent=self.agents["summarizer"],
             expected_output="Filtered list of relevant emails"
@@ -292,7 +292,7 @@ class EmailAgentCrew(BaseCrewAdapter):
             return {}
         
         # Create sentiment analysis task
-        task = Task(
+        Task(
             description=f"Analyze sentiment for {len(emails)} emails",
             agent=self.agents["summarizer"],  # Use summarizer agent for now
             expected_output="Sentiment analysis results with insights"
@@ -315,7 +315,7 @@ class EmailAgentCrew(BaseCrewAdapter):
             return {}
         
         # Create thread analysis task
-        task = Task(
+        Task(
             description=f"Analyze email threads from {len(emails)} emails",
             agent=self.agents["summarizer"],
             expected_output="Thread analysis with conversation insights"
@@ -379,7 +379,7 @@ class EmailAgentCrew(BaseCrewAdapter):
             return {"error": "No emails provided for triage"}
         
         # Create triage task
-        task = Task(
+        Task(
             description=f"Triage {len(emails)} emails for attention scoring and routing",
             agent=self.agents.get("categorizer"),  # Use categorizer agent for CrewAI
             expected_output="Emails grouped by triage decision with attention scores"
@@ -432,7 +432,7 @@ class EmailAgentCrew(BaseCrewAdapter):
             return {"error": "No original email provided for draft generation"}
         
         # Create draft generation task
-        task = Task(
+        Task(
             description=f"Generate {num_suggestions} draft suggestions for responding to email: {original_email.subject}",
             agent=self.agents.get("summarizer"),  # Use summarizer agent for CrewAI
             expected_output="Draft suggestions with confidence scores and style analysis"
@@ -483,7 +483,7 @@ class EmailAgentCrew(BaseCrewAdapter):
             return self.draft_agent.get_style_summary()
         
         # Create writing style analysis task
-        task = Task(
+        Task(
             description=f"Analyze writing style from {len(sent_emails)} sent emails",
             agent=self.agents.get("summarizer"),  # Use summarizer agent for CrewAI
             expected_output="Writing style profile with patterns and preferences"
@@ -521,7 +521,7 @@ class EmailAgentCrew(BaseCrewAdapter):
             return {"error": "No emails provided for narrative brief generation"}
         
         # Create narrative brief generation task
-        task = Task(
+        Task(
             description=f"Generate narrative-style brief for {target_date} from {len(emails)} emails",
             agent=self.agents.get("summarizer"),  # Use summarizer agent for CrewAI
             expected_output="Narrative brief with story-like structure and <60 second reading time"
