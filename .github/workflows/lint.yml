@@ -21,20 +21,21 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
+        pip install -e .
         pip install ruff black isort mypy
     
     - name: Run ruff
       run: |
-        ruff check src/
+        ruff check src/email_agent/
     
     - name: Check formatting with black
       run: |
-        black --check src/
+        black --check src/email_agent/
     
     - name: Check import ordering with isort
       run: |
-        isort --check-only src/
+        isort --check-only src/email_agent/
     
     - name: Run mypy
       run: |
-        mypy src/ --ignore-missing-imports || true
+        mypy src/email_agent/ --ignore-missing-imports || true

@@ -57,7 +57,7 @@ dev = [
 ]
 
 [project.scripts]
-email-agent = "email_agent.cli:app"
+email-agent = "email_agent.cli.main:app"
 
 [project.entry-points."email_agent.connectors"]
 gmail = "email_agent.connectors.gmail:GmailConnector"
