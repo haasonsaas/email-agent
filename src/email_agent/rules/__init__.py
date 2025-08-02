@@ -1,12 +1,12 @@
 """Email categorization rules engine."""
 
-from .engine import RulesEngine
 from .builtin import BuiltinRules
-from .processors import RegexRule, DomainRule, SubjectRule, SenderRule, MLRule
+from .engine import RulesEngine
+from .processors import DomainRule, MLRule, RegexRule, SenderRule, SubjectRule
 
 __all__ = [
     "RulesEngine",
-    "BuiltinRules", 
+    "BuiltinRules",
     "RegexRule",
     "DomainRule",
     "SubjectRule",

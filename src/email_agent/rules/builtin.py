@@ -3,12 +3,12 @@
 import re
 from typing import List
 
-from ..models import EmailRule, RuleCondition, EmailCategory, EmailPriority
+from ..models import EmailCategory, EmailPriority, EmailRule, RuleCondition
 
 
 class BuiltinRules:
     """Factory for creating built-in email categorization rules."""
-    
+
     @staticmethod
     def get_all_rules() -> List[EmailRule]:
         """Get all built-in rules."""
@@ -22,7 +22,7 @@ class BuiltinRules:
             BuiltinRules.urgent_emails_rule(),
             BuiltinRules.spam_indicators_rule(),
         ]
-    
+
     @staticmethod
     def social_media_rule() -> EmailRule:
         """Rule for social media emails."""
@@ -35,16 +35,16 @@ class BuiltinRules:
                     field="sender_domain",
                     operator="regex",
                     value=r"(facebook|twitter|linkedin|instagram|tiktok|snapchat|discord|slack|teams)\.com$",
-                    case_sensitive=False
+                    case_sensitive=False,
                 ),
             ],
             actions={
                 "category": EmailCategory.SOCIAL.value,
-                "add_tags": ["social_media"]
+                "add_tags": ["social_media"],
             },
-            priority=10
+            priority=10,
         )
-    
+
     @staticmethod
     def newsletters_rule() -> EmailRule:
         """Rule for newsletter emails."""
@@ -57,16 +57,16 @@ class BuiltinRules:
                     field="subject",
                     operator="regex",
                     value=r"(newsletter|digest|weekly|monthly|update|bulletin)",
-                    case_sensitive=False
+                    case_sensitive=False,
                 ),
             ],
             actions={
                 "category": EmailCategory.UPDATES.value,
-                "add_tags": ["newsletter"]
+                "add_tags": ["newsletter"],
             },
-            priority=20
+            priority=20,
         )
-    
+
     @staticmethod
     def notifications_rule() -> EmailRule:
         """Rule for notification emails."""
@@ -79,16 +79,16 @@ class BuiltinRules:
                     field="subject",
                     operator="regex",
                     value=r"(notification|alert|reminder|noreply|no-reply)",
-                    case_sensitive=False
+                    case_sensitive=False,
                 ),
             ],
             actions={
                 "category": EmailCategory.UPDATES.value,
-                "add_tags": ["notification"]
+                "add_tags": ["notification"],
             },
-            priority=30
+            priority=30,
         )
-    
+
     @staticmethod
     def promotions_rule() -> EmailRule:
         """Rule for promotional emails."""
@@ -101,16 +101,16 @@ class BuiltinRules:
                     field="subject",
                     operator="regex",
                     value=r"(sale|discount|offer|promo|deal|coupon|% off|free shipping|limited time)",
-                    case_sensitive=False
+                    case_sensitive=False,
                 ),
             ],
             actions={
                 "category": EmailCategory.PROMOTIONS.value,
-                "add_tags": ["promotion", "marketing"]
+                "add_tags": ["promotion", "marketing"],
             },
-            priority=15
+            priority=15,
         )
-    
+
     @staticmethod
     def forums_rule() -> EmailRule:
         """Rule for forum and community emails."""
@@ -123,16 +123,16 @@ class BuiltinRules:
                     field="subject",
                     operator="regex",
                     value=r"(\[.*\]|forum|community|discussion|replied to|mentioned you)",
-                    case_sensitive=False
+                    case_sensitive=False,
                 ),
             ],
             actions={
                 "category": EmailCategory.FORUMS.value,
-                "add_tags": ["forum", "community"]
+                "add_tags": ["forum", "community"],
             },
-            priority=25
+            priority=25,
         )
-    
+
     @staticmethod
     def automated_emails_rule() -> EmailRule:
         """Rule for automated system emails."""
@@ -145,17 +145,17 @@ class BuiltinRules:
                     field="sender",
                     operator="regex",
                     value=r"(noreply|no-reply|donotreply|automated|system|daemon)@",
-                    case_sensitive=False
+                    case_sensitive=False,
                 ),
             ],
             actions={
                 "category": EmailCategory.UPDATES.value,
                 "add_tags": ["automated", "system"],
-                "priority": EmailPriority.LOW.value
+                "priority": EmailPriority.LOW.value,
             },
-            priority=40
+            priority=40,
         )
-    
+
     @staticmethod
     def urgent_emails_rule() -> EmailRule:
         """Rule for urgent emails."""
@@ -168,17 +168,17 @@ class BuiltinRules:
                     field="subject",
                     operator="regex",
                     value=r"(urgent|asap|emergency|critical|immediate|deadline|expires)",
-                    case_sensitive=False
+                    case_sensitive=False,
                 ),
             ],
             actions={
                 "priority": EmailPriority.URGENT.value,
                 "add_tags": ["urgent"],
-                "mark_flagged": True
+                "mark_flagged": True,
             },
-            priority=5  # High priority to catch urgent emails first
+            priority=5,  # High priority to catch urgent emails first
         )
-    
+
     @staticmethod
     def spam_indicators_rule() -> EmailRule:
         """Rule for potential spam indicators."""
@@ -191,22 +191,24 @@ class BuiltinRules:
                     field="subject",
                     operator="regex",
                     value=r"(RE: RE: RE:|FW: FW: FW:|WINNER|CONGRATULATIONS|CLAIM YOUR|ACT NOW|CASH PRIZE)",
-                    case_sensitive=False
+                    case_sensitive=False,
                 ),
             ],
             actions={
                 "add_tags": ["potential_spam"],
-                "priority": EmailPriority.LOW.value
+                "priority": EmailPriority.LOW.value,
             },
-            priority=50
+            priority=50,
         )
-    
+
     @staticmethod
-    def create_domain_rule(domain: str, category: EmailCategory, tags: List[str] = None) -> EmailRule:
+    def create_domain_rule(
+        domain: str, category: EmailCategory, tags: List[str] = None
+    ) -> EmailRule:
         """Create a custom domain-based rule."""
         rule_id = f"domain_{domain.replace('.', '_')}"
-        tags = tags or [domain.split('.')[0]]
-        
+        tags = tags or [domain.split(".")[0]]
+
         return EmailRule(
             id=rule_id,
             name=f"Domain: {domain}",
@@ -216,22 +218,21 @@ class BuiltinRules:
                     field="sender_domain",
                     operator="equals",
                     value=domain,
-                    case_sensitive=False
+                    case_sensitive=False,
                 ),
             ],
-            actions={
-                "category": category.value,
-                "add_tags": tags
-            },
-            priority=100  # Lower priority for custom rules
+            actions={"category": category.value, "add_tags": tags},
+            priority=100,  # Lower priority for custom rules
         )
-    
+
     @staticmethod
-    def create_sender_rule(sender: str, category: EmailCategory, tags: List[str] = None) -> EmailRule:
+    def create_sender_rule(
+        sender: str, category: EmailCategory, tags: List[str] = None
+    ) -> EmailRule:
         """Create a custom sender-based rule."""
         rule_id = f"sender_{sender.replace('@', '_at_').replace('.', '_')}"
         tags = tags or ["custom_sender"]
-        
+
         return EmailRule(
             id=rule_id,
             name=f"Sender: {sender}",
@@ -241,22 +242,21 @@ class BuiltinRules:
                     field="sender",
                     operator="equals",
                     value=sender,
-                    case_sensitive=False
+                    case_sensitive=False,
                 ),
             ],
-            actions={
-                "category": category.value,
-                "add_tags": tags
-            },
-            priority=90  # Higher priority than domain rules
+            actions={"category": category.value, "add_tags": tags},
+            priority=90,  # Higher priority than domain rules
         )
-    
+
     @staticmethod
-    def create_keyword_rule(keywords: List[str], category: EmailCategory, field: str = "subject") -> EmailRule:
+    def create_keyword_rule(
+        keywords: List[str], category: EmailCategory, field: str = "subject"
+    ) -> EmailRule:
         """Create a custom keyword-based rule."""
         keyword_pattern = "|".join(re.escape(keyword) for keyword in keywords)
         rule_id = f"keywords_{field}_{hash(keyword_pattern) % 10000}"
-        
+
         return EmailRule(
             id=rule_id,
             name=f"Keywords in {field}: {', '.join(keywords[:3])}{'...' if len(keywords) > 3 else ''}",
@@ -266,12 +266,9 @@ class BuiltinRules:
                     field=field,
                     operator="regex",
                     value=f"({keyword_pattern})",
-                    case_sensitive=False
+                    case_sensitive=False,
                 ),
             ],
-            actions={
-                "category": category.value,
-                "add_tags": ["keyword_match"]
-            },
-            priority=80
+            actions={"category": category.value, "add_tags": ["keyword_match"]},
+            priority=80,
         )

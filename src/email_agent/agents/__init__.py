@@ -1,13 +1,13 @@
 """Multi-agent orchestration for Email Agent."""
 
-from .crew import EmailAgentCrew
+from .categorizer import CategorizerAgent
 from .collector import CollectorAgent
-from .categorizer import CategorizerAgent  
+from .crew import EmailAgentCrew
 from .summarizer import SummarizerAgent
 
 __all__ = [
     "EmailAgentCrew",
     "CollectorAgent",
-    "CategorizerAgent", 
+    "CategorizerAgent",
     "SummarizerAgent",
 ]

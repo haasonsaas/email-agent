@@ -1,11 +1,11 @@
 """SDK interfaces for Email Agent extensibility."""
 
-from .base import BaseConnector, BaseRule, BaseCrewAdapter
-from .exceptions import ConnectorError, AuthenticationError, RateLimitError
+from .base import BaseConnector, BaseCrewAdapter, BaseRule
+from .exceptions import AuthenticationError, ConnectorError, RateLimitError
 
 __all__ = [
     "BaseConnector",
-    "BaseRule", 
+    "BaseRule",
     "BaseCrewAdapter",
     "ConnectorError",
     "AuthenticationError",
