@@ -29,7 +29,9 @@ jobs:
     
     - name: Run tests
       run: |
-        pytest tests/ -v --cov=src.email_agent --cov-report=xml
+        pytest tests/ -v --cov=email_agent --cov-report=xml -m "not ai"
+      env:
+        OPENAI_API_KEY: dummy-key-for-tests
     
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
