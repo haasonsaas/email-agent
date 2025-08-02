@@ -4,9 +4,9 @@
 import asyncio
 import json
 import re
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Set, Tuple, Any
-from dataclasses import dataclass, asdict
+from datetime import datetime
+from typing import Dict, List, Set, Any
+from dataclasses import dataclass
 from collections import defaultdict, Counter
 from ..storage.database import DatabaseManager
 from ..models import Email, EmailAddress, EmailCategory, EmailPriority
@@ -614,7 +614,7 @@ async def analyze_thread_intelligence(limit: int = 1000):
     analysis_results = await ti.analyze_thread_patterns(emails)
     
     # Display results
-    console.print(f"\n[bold]📊 Thread Analysis Results:[/bold]")
+    console.print("\n[bold]📊 Thread Analysis Results:[/bold]")
     console.print(f"  • Total threads: {analysis_results['total_threads']}")
     console.print(f"  • Active threads: [green]{analysis_results['active_threads']}[/green]")
     console.print(f"  • Critical threads: [red]{analysis_results['critical_threads']}[/red]")

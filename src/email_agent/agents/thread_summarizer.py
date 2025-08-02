@@ -2,13 +2,13 @@
 
 import asyncio
 import logging
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from datetime import datetime
+from typing import Any, Dict, List
 import json
 
 from openai import AsyncOpenAI
 from ..config import settings
-from ..models import Email, EmailThread
+from ..models import Email
 
 logger = logging.getLogger(__name__)
 

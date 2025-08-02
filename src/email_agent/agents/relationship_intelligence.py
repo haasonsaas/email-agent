@@ -4,7 +4,7 @@
 import json
 import re
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional
 from dataclasses import dataclass, asdict
 from collections import defaultdict, Counter
 from ..storage.database import DatabaseManager
@@ -596,7 +596,7 @@ async def analyze_relationship_intelligence(limit: int = 1000):
     analysis_results = await ri.analyze_relationships(emails)
     
     # Display results
-    console.print(f"\n[bold]📊 Relationship Analysis Results:[/bold]")
+    console.print("\n[bold]📊 Relationship Analysis Results:[/bold]")
     console.print(f"  • Total contacts analyzed: {analysis_results['total_contacts']}")
     console.print(f"  • Strategic contacts identified: [yellow]{analysis_results['strategic_contacts']}[/yellow]")
     
@@ -671,4 +671,5 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         limit = int(sys.argv[1])
     
+    import asyncio
     asyncio.run(analyze_relationship_intelligence(limit))

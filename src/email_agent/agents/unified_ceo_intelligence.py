@@ -3,20 +3,17 @@
 
 import asyncio
 import json
-import os
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Any
 from dataclasses import dataclass
-from collections import defaultdict, Counter
+from collections import defaultdict
 
 # Import our intelligence systems
 from .enhanced_ceo_labeler import EnhancedCEOLabeler
-from .relationship_intelligence import RelationshipIntelligence, ContactProfile
-from .thread_intelligence import ThreadIntelligence, ThreadProfile
+from .relationship_intelligence import RelationshipIntelligence
+from .thread_intelligence import ThreadIntelligence
 
 from ..storage.database import DatabaseManager
 from ..models import Email, EmailAddress, EmailCategory, EmailPriority
-from .ceo_assistant import CEOAssistantAgent
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
@@ -24,7 +21,6 @@ import keyring
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
 from rich.panel import Panel
-from rich.table import Table
 
 console = Console()
 
@@ -263,13 +259,13 @@ class UnifiedCEOIntelligence:
             if contact_profile.relationship_type == 'board':
                 if 'Board' not in suggested_labels:
                     suggested_labels.append('Board')
-                reasoning.append(f"Board member relationship")
+                reasoning.append("Board member relationship")
                 confidence_score += 0.4
                 escalation_recommended = True
             elif contact_profile.relationship_type == 'investor':
                 if 'Investors' not in suggested_labels:
                     suggested_labels.append('Investors')
-                reasoning.append(f"Investor relationship")
+                reasoning.append("Investor relationship")
                 confidence_score += 0.3
         
         # Thread-based predictions
@@ -277,7 +273,7 @@ class UnifiedCEOIntelligence:
             if thread_profile.thread_type == 'decision':
                 if 'DecisionRequired' not in suggested_labels:
                     suggested_labels.append('DecisionRequired')
-                reasoning.append(f"Part of decision thread")
+                reasoning.append("Part of decision thread")
                 confidence_score += 0.25
             
             # Inherit thread labels for consistency
@@ -476,7 +472,7 @@ async def run_unified_ceo_intelligence(limit: int = 200, dry_run: bool = False):
                                     userId='me', id=gmail_msg_id, body=body
                                 ).execute()
                                 stats['labeled'] += 1
-                    except:
+                    except Exception:
                         stats['gmail_errors'] += 1
                 
                 # Display intelligent insights
@@ -510,7 +506,7 @@ async def run_unified_ceo_intelligence(limit: int = 200, dry_run: bool = False):
             progress.advance(task)
     
     # Display comprehensive results
-    console.print(f"\n[bold green]✅ Unified Intelligence Processing Complete![/bold green]\n")
+    console.print("\n[bold green]✅ Unified Intelligence Processing Complete![/bold green]\n")
     
     # Statistics
     console.print("[bold]📊 Unified Intelligence Results:[/bold]")
@@ -527,14 +523,14 @@ async def run_unified_ceo_intelligence(limit: int = 200, dry_run: bool = False):
         medium_confidence = len([p for p in predictions_made if 0.4 < p.confidence_score <= 0.7])
         low_confidence = len([p for p in predictions_made if p.confidence_score <= 0.4])
         
-        console.print(f"\n[bold]🎯 Prediction Confidence:[/bold]")
+        console.print("\n[bold]🎯 Prediction Confidence:[/bold]")
         console.print(f"  • High confidence (>70%): [green]{high_confidence}[/green]")
         console.print(f"  • Medium confidence (40-70%): [yellow]{medium_confidence}[/yellow]")
         console.print(f"  • Low confidence (<40%): [red]{low_confidence}[/red]")
     
     # Escalations triggered
     if escalations_triggered:
-        console.print(f"\n[bold red]🚨 Auto-Escalations Triggered:[/bold red]")
+        console.print("\n[bold red]🚨 Auto-Escalations Triggered:[/bold red]")
         for email in escalations_triggered[:5]:
             console.print(f"  • [red]{email.subject[:50]}...[/red] from {email.sender.email}")
     

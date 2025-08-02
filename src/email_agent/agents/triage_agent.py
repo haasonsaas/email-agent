@@ -1,6 +1,5 @@
 """Triage agent for intelligent email screening and attention scoring."""
 
-import json
 import logging
 from datetime import datetime, timedelta
 from enum import Enum
@@ -12,7 +11,7 @@ except ImportError:
     AsyncOpenAI = None
 
 from ..config import settings
-from ..models import Email, EmailCategory, EmailPriority
+from ..models import Email, EmailCategory
 from ..storage.database import DatabaseManager
 
 logger = logging.getLogger(__name__)

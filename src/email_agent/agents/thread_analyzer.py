@@ -1,14 +1,13 @@
 """Thread analysis agent for email conversations."""
 
 import logging
-from typing import Dict, Any, List, Optional, Set, Tuple
-from datetime import datetime, timedelta
+from typing import Dict, Any, List
+from datetime import datetime
 from collections import defaultdict
 
 from ..config import settings
-from ..models import Email, EmailThread, EmailPriority, EmailCategory
+from ..models import Email
 from ..sdk.base import BaseAgent
-from ..sdk.exceptions import AgentError
 
 logger = logging.getLogger(__name__)
 

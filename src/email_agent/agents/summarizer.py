@@ -12,8 +12,7 @@ except ImportError:
     AsyncOpenAI = None
 
 from ..config import settings
-from ..models import Email, DailyBrief, BriefTemplate, EmailCategory, EmailPriority
-from ..sdk.exceptions import AgentError
+from ..models import Email, DailyBrief, EmailCategory, EmailPriority
 
 logger = logging.getLogger(__name__)
 

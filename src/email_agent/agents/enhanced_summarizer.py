@@ -1,9 +1,8 @@
 """Enhanced Summarizer Agent with narrative-style daily briefs."""
 
-import asyncio
 import logging
 from datetime import datetime, date, timedelta
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List
 import json
 import re
 
@@ -12,9 +11,8 @@ try:
 except ImportError:
     OpenAI = None
 
-from ..models import Email, DailyBrief, EmailCategory, EmailPriority, EmailThread
+from ..models import Email, DailyBrief, EmailPriority
 from ..sdk.base import BaseAgent
-from ..config import settings
 
 logger = logging.getLogger(__name__)
 

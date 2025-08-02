@@ -1,9 +1,8 @@
 """Learning feedback system for Email Agent."""
 
-import asyncio
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 import json
 import sqlite3
 from pathlib import Path

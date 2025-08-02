@@ -497,7 +497,7 @@ async def enhanced_label_emails(limit: int = 200, dry_run: bool = False):
             progress.advance(task)
     
     # Display enhanced results
-    console.print(f"\n[bold green]✅ Enhanced Intelligence Processing Complete![/bold green]\n")
+    console.print("\n[bold green]✅ Enhanced Intelligence Processing Complete![/bold green]\n")
     
     # Statistics
     console.print("[bold]📊 Enhanced Results:[/bold]")

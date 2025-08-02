@@ -1,13 +1,11 @@
 """Sentiment analysis agent for emails."""
 
 import logging
-from typing import Dict, Any, List, Optional
-from datetime import datetime
+from typing import Dict, Any, List
 
 from ..config import settings
-from ..models import Email, EmailPriority
+from ..models import Email
 from ..sdk.base import BaseAgent
-from ..sdk.exceptions import AgentError
 
 logger = logging.getLogger(__name__)
 

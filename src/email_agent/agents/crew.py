@@ -7,8 +7,7 @@ from typing import Any, Dict, List, Optional
 from crewai import Agent, Crew, Task, Process
 from crewai.tools import BaseTool
 
-from ..config import settings
-from ..models import Email, DailyBrief, ConnectorConfig
+from ..models import Email, DailyBrief
 from ..sdk.base import BaseCrewAdapter
 from ..sdk.exceptions import AgentError
 from .collector import CollectorAgent
