@@ -4,11 +4,11 @@ import pytest
 from unittest.mock import AsyncMock, Mock, patch
 from datetime import datetime, date
 
-from src.email_agent.agents.collector import CollectorAgent
-from src.email_agent.agents.categorizer import CategorizerAgent
-from src.email_agent.agents.summarizer import SummarizerAgent
-from src.email_agent.agents.crew import EmailAgentCrew
-from src.email_agent.models import EmailCategory, EmailPriority
+from email_agent.agents.collector import CollectorAgent
+from email_agent.agents.categorizer import CategorizerAgent
+from email_agent.agents.summarizer import SummarizerAgent
+from email_agent.agents.crew import EmailAgentCrew
+from email_agent.models import EmailCategory, EmailPriority
 
 
 class TestCollectorAgent:

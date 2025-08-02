@@ -4,7 +4,7 @@ import pytest
 from unittest.mock import Mock, patch, AsyncMock
 from textual.app import App
 
-from src.email_agent.tui.app import EmailAgentTUI, EmailList, SettingsPanel, AnalyticsDashboard
+from email_agent.tui.app import EmailAgentTUI, EmailList, SettingsPanel, AnalyticsDashboard
 
 
 class TestEmailList:
@@ -117,8 +117,8 @@ class TestEmailAgentTUI:
     @pytest.fixture
     def mock_dependencies(self):
         """Mock TUI dependencies."""
-        with patch('src.email_agent.tui.app.DatabaseManager') as mock_db, \
-             patch('src.email_agent.tui.app.EmailAgentCrew') as mock_crew:
+        with patch('email_agent.tui.app.DatabaseManager') as mock_db, \
+             patch('email_agent.tui.app.EmailAgentCrew') as mock_crew:
             
             mock_db_instance = Mock()
             mock_db_instance.get_emails.return_value = []
@@ -426,8 +426,8 @@ class TestTUIIntegration:
     @pytest.fixture
     def mock_dependencies(self):
         """Set up mock dependencies."""
-        with patch('src.email_agent.tui.app.DatabaseManager') as mock_db, \
-             patch('src.email_agent.tui.app.EmailAgentCrew') as mock_crew:
+        with patch('email_agent.tui.app.DatabaseManager') as mock_db, \
+             patch('email_agent.tui.app.EmailAgentCrew') as mock_crew:
             
             mock_db_instance = Mock()
             mock_db.return_value = mock_db_instance

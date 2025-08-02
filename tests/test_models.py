@@ -4,7 +4,7 @@ import pytest
 from datetime import datetime
 from pydantic import ValidationError
 
-from src.email_agent.models import (
+from email_agent.models import (
     Email, EmailAddress, EmailAttachment, EmailCategory, EmailPriority,
     EmailRule, RuleCondition, ConnectorConfig, DailyBrief
 )

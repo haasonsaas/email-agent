@@ -4,8 +4,8 @@ import pytest
 from datetime import datetime
 from unittest.mock import Mock, patch, AsyncMock
 
-from src.email_agent.agents.draft_agent import DraftAgent, WritingStyle, DraftSuggestion
-from src.email_agent.models import Email, EmailAddress, EmailCategory, EmailPriority
+from email_agent.agents.draft_agent import DraftAgent, WritingStyle, DraftSuggestion
+from email_agent.models import Email, EmailAddress, EmailCategory, EmailPriority
 
 
 @pytest.fixture
@@ -205,7 +205,7 @@ class TestWritingStyleAnalysis:
 class TestDraftGeneration:
     """Test draft generation functionality."""
     
-    @patch('src.email_agent.agents.draft_agent.OpenAI')
+    @patch('email_agent.agents.draft_agent.OpenAI')
     def test_generate_draft_suggestions_basic(self, mock_openai, draft_agent, sample_incoming_email):
         """Test basic draft generation."""
         # Mock OpenAI response

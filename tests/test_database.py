@@ -3,7 +3,7 @@
 import pytest
 from datetime import datetime, timedelta
 
-from src.email_agent.models import EmailCategory, EmailPriority
+from email_agent.models import EmailCategory, EmailPriority
 
 
 class TestDatabaseManager:

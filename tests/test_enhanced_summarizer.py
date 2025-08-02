@@ -4,8 +4,8 @@ import pytest
 from datetime import datetime, date
 from unittest.mock import Mock, patch
 
-from src.email_agent.agents.enhanced_summarizer import EnhancedSummarizerAgent
-from src.email_agent.models import Email, EmailAddress, EmailCategory, EmailPriority, DailyBrief
+from email_agent.agents.enhanced_summarizer import EnhancedSummarizerAgent
+from email_agent.models import Email, EmailAddress, EmailCategory, EmailPriority, DailyBrief
 
 
 @pytest.fixture
@@ -245,7 +245,7 @@ class TestNarrativeGeneration:
         # Check that metadata is stored in summary
         assert "---NARRATIVE_METADATA---" in brief.summary
     
-    @patch('src.email_agent.agents.enhanced_summarizer.OpenAI')
+    @patch('email_agent.agents.enhanced_summarizer.OpenAI')
     @pytest.mark.asyncio
     async def test_generate_narrative_brief_with_ai(self, mock_openai_class, enhanced_summarizer, sample_emails):
         """Test narrative brief generation with AI."""

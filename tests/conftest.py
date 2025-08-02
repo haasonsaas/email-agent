@@ -8,12 +8,12 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List
 
-from src.email_agent.storage.database import DatabaseManager
-from src.email_agent.models import (
+from email_agent.storage.database import DatabaseManager
+from email_agent.models import (
     Email, EmailAddress, EmailCategory, EmailPriority, 
     EmailRule, RuleCondition, ConnectorConfig
 )
-from src.email_agent.agents.crew import EmailAgentCrew
+from email_agent.agents.crew import EmailAgentCrew
 
 
 @pytest.fixture(scope="session")

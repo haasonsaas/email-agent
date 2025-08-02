@@ -4,7 +4,7 @@ import pytest
 from unittest.mock import patch, Mock
 from typer.testing import CliRunner
 
-from src.email_agent.cli.main import app
+from email_agent.cli.main import app
 
 
 class TestCLI:
@@ -26,7 +26,7 @@ class TestCLI:
         assert result.exit_code == 0
         assert "Email Agent v" in result.output
 
-    @patch('src.email_agent.cli.main.DatabaseManager')
+    @patch('email_agent.cli.main.DatabaseManager')
     def test_stats_command(self, mock_db):
         """Test stats command."""
         # Mock database response
@@ -43,8 +43,8 @@ class TestCLI:
         assert result.exit_code == 0
         assert "10" in result.output  # Changed to just look for the number
 
-    @patch('src.email_agent.cli.main.EmailAgentCrew')
-    @patch('src.email_agent.cli.main.DatabaseManager')
+    @patch('email_agent.cli.main.EmailAgentCrew')
+    @patch('email_agent.cli.main.DatabaseManager')
     def test_sync_command_no_connectors(self, mock_db, mock_crew):
         """Test sync command with no connectors."""
         mock_db_instance = Mock()
@@ -69,7 +69,7 @@ class TestCLI:
         assert result.exit_code == 0
         assert "Generate and view daily briefs" in result.output
 
-    @patch('src.email_agent.storage.database.DatabaseManager')
+    @patch('email_agent.storage.database.DatabaseManager')
     def test_brief_list_command(self, mock_db):
         """Test brief list command."""
         # Mock database response
@@ -94,7 +94,7 @@ class TestCLI:
         result = self.runner.invoke(app, ["invalid-command"])
         assert result.exit_code != 0
 
-    @patch('src.email_agent.storage.database.DatabaseManager')
+    @patch('email_agent.storage.database.DatabaseManager')
     def test_rules_operations(self, mock_db):
         """Test rules management operations."""
         mock_db_instance = Mock()
@@ -133,7 +133,7 @@ class TestCLI:
             result = self.runner.invoke(app, ["stats"])
             # Should handle database errors gracefully
 
-    @patch('src.email_agent.tui.app.EmailAgentTUI.run')
+    @patch('email_agent.tui.app.EmailAgentTUI.run')
     def test_dashboard_command_execution(self, mock_run):
         """Test dashboard command execution."""
         mock_run.return_value = None
@@ -150,8 +150,8 @@ class TestCLIIntegration:
         """Set up test environment."""
         self.runner = CliRunner()
 
-    @patch('src.email_agent.cli.main.DatabaseManager')
-    @patch('src.email_agent.cli.main.EmailAgentCrew')
+    @patch('email_agent.cli.main.DatabaseManager')
+    @patch('email_agent.cli.main.EmailAgentCrew')
     def test_full_sync_workflow(self, mock_crew, mock_db):
         """Test complete sync workflow via CLI."""
         # Setup mocks
@@ -183,13 +183,13 @@ class TestCLIIntegration:
         mock_crew_instance.initialize_crew.assert_called_once()
         mock_crew_instance.execute_task.assert_called()
 
-    @patch('src.email_agent.storage.database.DatabaseManager')
+    @patch('email_agent.storage.database.DatabaseManager')
     def test_brief_generation_workflow(self, mock_db):
         """Test brief generation workflow."""
         mock_db_instance = Mock()
         mock_db.return_value = mock_db_instance
         
-        with patch('src.email_agent.agents.crew.EmailAgentCrew') as mock_crew:
+        with patch('email_agent.agents.crew.EmailAgentCrew') as mock_crew:
             mock_crew_instance = Mock()
             mock_crew.return_value = mock_crew_instance
             
@@ -208,7 +208,7 @@ class TestCLIIntegration:
             result = self.runner.invoke(app, cmd)
             # Each command should complete without crashing
 
-    @patch('src.email_agent.storage.database.DatabaseManager')
+    @patch('email_agent.storage.database.DatabaseManager')
     def test_cli_with_database_issues(self, mock_db):
         """Test CLI behavior with database connectivity issues."""
         mock_db.side_effect = Exception("Database connection failed")
@@ -225,7 +225,7 @@ class TestCLIIntegration:
         assert "Usage:" in result.output
         # Typer uses rich formatting which shows "Commands" in a box, not as a plain string
 
-    @patch('src.email_agent.cli.main.DatabaseManager')
+    @patch('email_agent.cli.main.DatabaseManager')
     def test_cli_with_large_datasets(self, mock_db):
         """Test CLI performance with large datasets."""
         mock_db_instance = Mock()
