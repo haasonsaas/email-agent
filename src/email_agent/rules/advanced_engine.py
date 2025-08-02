@@ -2,15 +2,10 @@
 
 import logging
 import re
-import json
-from typing import Dict, Any, List, Optional, Set, Tuple
-from datetime import datetime, timedelta
+from typing import Dict, Any, List, Optional
 from collections import defaultdict, Counter
 
-from ..config import settings
-from ..models import Email, EmailRule, RuleCondition, EmailCategory, EmailPriority
-from ..sdk.base import BaseAgent
-from ..sdk.exceptions import AgentError
+from ..models import Email, EmailRule, RuleCondition
 from .engine import RulesEngine
 
 logger = logging.getLogger(__name__)

@@ -1,8 +1,5 @@
 """SQLAlchemy ORM models for Email Agent storage."""
 
-import json
-from datetime import datetime
-from typing import Any, Dict, List
 
 from sqlalchemy import (
     Boolean, Column, DateTime, ForeignKey, Integer, JSON, String, Text, Float

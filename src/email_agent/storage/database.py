@@ -1,10 +1,9 @@
 """Database management for Email Agent."""
 
-import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 from sqlalchemy import create_engine, and_, or_, desc, asc, func
 from sqlalchemy.orm import sessionmaker, Session
@@ -12,13 +11,11 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from ..config import settings
 from ..models import (
-    Email, EmailThread, EmailRule, ConnectorConfig, DailyBrief,
-    EmailAddress, EmailAttachment, EmailCategory, EmailPriority
+    Email, EmailRule, ConnectorConfig, EmailAddress, EmailAttachment, EmailCategory, EmailPriority
 )
 from ..sdk.exceptions import StorageError
 from .models import (
-    Base, EmailORM, EmailThreadORM, EmailRuleORM, ConnectorConfigORM,
-    DailyBriefORM, SyncLogORM, UserPreferencesORM
+    Base, EmailORM, EmailRuleORM, ConnectorConfigORM
 )
 
 logger = logging.getLogger(__name__)
@@ -186,7 +183,7 @@ class DatabaseManager:
                     # This is a heuristic - in practice, you'd want to configure this
                     query = query.filter(
                         or_(
-                            EmailORM.is_draft == True,
+                            EmailORM.is_draft,
                             EmailORM.sender_email.like('%@gmail.com'),  # Common personal domains
                             EmailORM.sender_email.like('%@outlook.com'),
                             EmailORM.sender_email.like('%@yahoo.com'),
@@ -219,8 +216,8 @@ class DatabaseManager:
         try:
             with self.get_session() as session:
                 total = session.query(EmailORM).count()
-                unread = session.query(EmailORM).filter(EmailORM.is_read == False).count()
-                flagged = session.query(EmailORM).filter(EmailORM.is_flagged == True).count()
+                unread = session.query(EmailORM).filter(not EmailORM.is_read).count()
+                flagged = session.query(EmailORM).filter(EmailORM.is_flagged).count()
                 
                 # Category counts
                 category_counts = {}
@@ -261,7 +258,7 @@ class DatabaseManager:
             with self.get_session() as session:
                 query = session.query(EmailRuleORM)
                 if enabled_only:
-                    query = query.filter(EmailRuleORM.enabled == True)
+                    query = query.filter(EmailRuleORM.enabled)
                 
                 query = query.order_by(asc(EmailRuleORM.priority))
                 rule_orms = query.all()
@@ -306,7 +303,7 @@ class DatabaseManager:
             with self.get_session() as session:
                 query = session.query(ConnectorConfigORM)
                 if enabled_only:
-                    query = query.filter(ConnectorConfigORM.enabled == True)
+                    query = query.filter(ConnectorConfigORM.enabled)
                 
                 config_orms = query.all()
                 return [self._orm_to_connector_config(orm) for orm in config_orms]

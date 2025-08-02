@@ -1,17 +1,13 @@
 """Enhanced Gmail service with advanced SDK features."""
 
-import asyncio
 import logging
-from typing import Any, Dict, List, Optional, Tuple
-from datetime import datetime, timedelta
-import json
+from typing import Any, Dict, List, Optional
 
 from googleapiclient.discovery import build
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import Flow
 
-from ..models import Email, EmailAddress
+from ..models import Email
 from ..config import settings
 
 logger = logging.getLogger(__name__)
@@ -166,7 +162,7 @@ class GmailService:
         try:
             # This would require calendar API integration
             # For now, we'll create a structured reminder
-            event_data = {
+            {
                 'summary': f"Meeting from: {email.subject}",
                 'description': f"Meeting request from {email.sender.email}\n\nOriginal email: {email.body[:200]}...",
                 'start': {

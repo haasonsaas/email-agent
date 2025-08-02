@@ -2,7 +2,6 @@
 
 import asyncio
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -63,7 +62,7 @@ def setup_directories():
         briefs_dir = settings.briefs_dir
         briefs_dir.mkdir(parents=True, exist_ok=True)
         
-        console.print(f"[green]✓[/green] Created directories:")
+        console.print("[green]✓[/green] Created directories:")
         console.print(f"  Data: {data_dir}")
         console.print(f"  Logs: {logs_dir}")
         console.print(f"  Briefs: {briefs_dir}")
@@ -77,7 +76,7 @@ def setup_database():
     """Initialize the database."""
     try:
         with console.status("[bold blue]Initializing database..."):
-            db = DatabaseManager()
+            DatabaseManager()
         
         console.print("[green]✓[/green] Database initialized")
         
@@ -214,7 +213,7 @@ def check_database() -> bool:
     """Check if database is accessible."""
     try:
         db = DatabaseManager()
-        stats = db.get_email_stats()
+        db.get_email_stats()
         return True
     except Exception:
         return False

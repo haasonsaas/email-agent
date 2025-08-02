@@ -4,9 +4,8 @@ import logging
 import re
 from typing import Any, Dict, List, Optional
 
-from ..models import Email, EmailRule, EmailCategory, EmailPriority, RuleCondition
+from ..models import Email, EmailRule, RuleCondition
 from ..sdk.base import BaseRule
-from ..sdk.exceptions import RuleError
 from .processors import create_rule_processor
 
 logger = logging.getLogger(__name__)

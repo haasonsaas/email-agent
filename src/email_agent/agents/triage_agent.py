@@ -257,7 +257,7 @@ class TriageAgent:
         """Save sender importance scores to database."""
         try:
             # This would save to database in real implementation
-            habit_data = {
+            {
                 "sender_scores": scores,
                 "last_updated": datetime.now().isoformat()
             }
@@ -609,7 +609,7 @@ Return only a number between 0.0 and 1.0.
         """Apply feedback to improve future triage decisions."""
         try:
             sender = email.sender.email
-            original_decision = feedback.get("original_decision")
+            feedback.get("original_decision")
             correct_decision = feedback.get("correct_decision")
             user_action = feedback.get("user_action")
             
@@ -722,7 +722,7 @@ Return only a number between 0.0 and 1.0.
     async def _save_habit_learning_updates(self) -> None:
         """Save all habit learning updates to persistent storage."""
         try:
-            habit_data = {
+            {
                 "sender_scores": self.sender_importance,
                 "category_preferences": getattr(self, 'category_preferences', {}),
                 "urgency_patterns": getattr(self, 'urgency_patterns', {}),

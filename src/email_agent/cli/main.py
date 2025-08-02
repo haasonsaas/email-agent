@@ -4,7 +4,6 @@ import asyncio
 import json
 import logging
 from datetime import datetime, timedelta
-from pathlib import Path
 from typing import Optional
 
 import typer
@@ -16,7 +15,7 @@ from rich.text import Text
 from ..config import settings
 from ..storage import DatabaseManager
 from ..agents import EmailAgentCrew
-from ..models import ConnectorConfig, EmailCategory
+from ..models import EmailCategory
 from .commands import init, pull, brief, rules, categories, ceo, config, status, inbox, drafts
 
 # Setup logging
@@ -75,8 +74,8 @@ def quick_start():
 
 
 @app.command()
-def dashboard():
-    """Launch interactive dashboard (TUI)."""
+def dashboard_legacy():
+    """Launch interactive dashboard (TUI) - legacy version."""
     try:
         from ..tui import EmailAgentTUI
         tui = EmailAgentTUI()
@@ -158,7 +157,7 @@ def sync(
             console.print(f"  Emails saved to database: {results['emails_saved']}")
             
             if results.get('brief_generated'):
-                console.print(f"  Daily brief: Generated")
+                console.print("  Daily brief: Generated")
             
             if results.get('errors'):
                 console.print(f"[red]  Errors: {len(results['errors'])}[/red]")
@@ -279,7 +278,6 @@ def triage_stats():
 def dashboard():
     """Launch the interactive TUI dashboard."""
     from ..tui.app import EmailAgentTUI
-    from textual.app import App
     
     try:
         app = EmailAgentTUI()
@@ -298,7 +296,7 @@ def auto_handle(
     
     async def run_auto_handler():
         from ..agents import EmailAgentCrew
-        from ..models import Email, EmailAddress, EmailCategory, EmailPriority
+        from ..models import Email, EmailAddress, EmailPriority
         
         db = DatabaseManager()
         crew = EmailAgentCrew()
@@ -312,7 +310,7 @@ def auto_handle(
         with db.get_session() as session:
             from ..storage.models import EmailORM
             unread_emails = session.query(EmailORM).filter(
-                EmailORM.is_read == False
+                not EmailORM.is_read
             ).all()
             
             console.print(f"Found [yellow]{len(unread_emails)}[/yellow] unread emails to process")
@@ -350,7 +348,7 @@ def auto_handle(
         priority_count = len(triage_results.get('priority_inbox', []))
         archive_count = len(triage_results.get('auto_archive', []))
         
-        console.print(f"\n📊 [bold]AI Analysis Complete:[/bold]")
+        console.print("\n📊 [bold]AI Analysis Complete:[/bold]")
         console.print(f"  🔴 Priority/Urgent: [red]{priority_count}[/red] emails")
         console.print(f"  📦 Auto-archive: [green]{archive_count}[/green] emails")
         console.print(f"  📨 Regular inbox: {len(triage_results.get('regular_inbox', []))} emails")
@@ -416,7 +414,7 @@ def smart_actions(
     async def run_smart_actions():
         from ..agents.action_extractor import ActionExtractorAgent
         from ..connectors.gmail_service import GmailService
-        from ..models import Email, EmailAddress, EmailCategory, EmailPriority
+        from ..models import Email, EmailAddress, EmailPriority
         
         db = DatabaseManager()
         action_extractor = ActionExtractorAgent()
@@ -542,7 +540,7 @@ def smart_actions(
                             for meeting in actions.get('meeting_requests', []):
                                 event_id = await gmail_service.create_calendar_event(meeting, email)
                                 if event_id:
-                                    console.print(f"     📅 Calendar event created")
+                                    console.print("     📅 Calendar event created")
                     
                     except Exception as e:
                         console.print(f"     [red]❌ Gmail feature error: {e}[/red]")
@@ -560,7 +558,7 @@ def smart_actions(
                             session.commit()
         
         # Show summary
-        console.print(f"\n📊 [bold]Action Extraction Summary:[/bold]")
+        console.print("\n📊 [bold]Action Extraction Summary:[/bold]")
         console.print(f"  📋 Total action items: [cyan]{total_actions}[/cyan]")
         console.print(f"  🤝 Total commitments: [cyan]{total_commitments}[/cyan]")
         console.print(f"  📅 Meeting requests: [cyan]{total_meetings}[/cyan]")
@@ -593,9 +591,9 @@ def thread_summary(
 ):
     """Summarize email threads with AI-powered insights."""
     
-    async def run_thread_summary():
+    async def run_thread_summary(thread_id=thread_id, limit=limit, days=days, insights=insights, overview=overview):
         from ..agents.thread_summarizer import ThreadSummarizerAgent
-        from ..models import Email, EmailAddress, EmailCategory, EmailPriority
+        from ..models import Email, EmailAddress, EmailPriority
         
         db = DatabaseManager()
         summarizer = ThreadSummarizerAgent()
@@ -692,7 +690,7 @@ def thread_summary(
             console.print(f"   🔥 Priority: {summary.get('priority_level', 'unknown')}")
             console.print(f"   😊 Sentiment: {summary.get('sentiment', 'unknown')}")
             
-            console.print(f"\n   📝 [bold]Summary:[/bold]")
+            console.print("\n   📝 [bold]Summary:[/bold]")
             console.print(f"   {summary.get('thread_summary', 'No summary available')}")
             
             if summary.get('action_items'):
@@ -703,17 +701,17 @@ def thread_summary(
                     console.print(f"     • {action.get('action', 'No action')}{owner_str}{deadline_str}")
             
             if summary.get('key_decisions'):
-                console.print(f"\n   💡 [bold]Key Decisions:[/bold]")
+                console.print("\n   💡 [bold]Key Decisions:[/bold]")
                 for decision in summary['key_decisions'][:2]:
                     console.print(f"     • {decision}")
             
             if summary.get('next_steps'):
-                console.print(f"\n   ➡️  [bold]Next Steps:[/bold]")
+                console.print("\n   ➡️  [bold]Next Steps:[/bold]")
                 for step in summary['next_steps'][:2]:
                     console.print(f"     • {step}")
             
             if summary.get('requires_attention'):
-                console.print(f"   [red]⚠️  Requires Attention![/red]")
+                console.print("   [red]⚠️  Requires Attention![/red]")
             
             # Generate insights if requested
             if insights:
@@ -722,13 +720,13 @@ def thread_summary(
                 
                 if 'error' not in thread_insights:
                     if thread_insights.get('escalation_needed'):
-                        console.print(f"   [red]🚨 Escalation recommended![/red]")
+                        console.print("   [red]🚨 Escalation recommended![/red]")
                     
                     console.print(f"   📈 Efficiency Score: {thread_insights.get('efficiency_score', 'N/A')}/10")
                     console.print(f"   🤝 Collaboration Score: {thread_insights.get('collaboration_score', 'N/A')}/10")
                     
                     if thread_insights.get('recommendations'):
-                        console.print(f"   💭 [bold]Recommendations:[/bold]")
+                        console.print("   💭 [bold]Recommendations:[/bold]")
                         for rec in thread_insights['recommendations'][:2]:
                             console.print(f"     • {rec}")
         
@@ -738,7 +736,7 @@ def thread_summary(
             threads_overview = await summarizer.generate_threads_overview(summaries)
             
             if 'error' not in threads_overview:
-                console.print(f"\n📊 [bold]Threads Overview:[/bold]")
+                console.print("\n📊 [bold]Threads Overview:[/bold]")
                 stats = threads_overview['summary_stats']
                 console.print(f"  📧 Total threads: {threads_overview['total_threads']}")
                 console.print(f"  🔴 Urgent: {stats['urgent_threads']}")
@@ -748,12 +746,12 @@ def thread_summary(
                 console.print(f"  ⏰ Overdue actions: {stats['overdue_actions']}")
                 
                 if threads_overview.get('thread_types'):
-                    console.print(f"\n📈 [bold]Thread Types:[/bold]")
+                    console.print("\n📈 [bold]Thread Types:[/bold]")
                     for t_type, count in threads_overview['thread_types'].items():
                         console.print(f"  {t_type}: {count}")
                 
                 if threads_overview.get('recommendations'):
-                    console.print(f"\n💡 [bold]Recommendations:[/bold]")
+                    console.print("\n💡 [bold]Recommendations:[/bold]")
                     for rec in threads_overview['recommendations'][:3]:
                         console.print(f"  • {rec}")
         
@@ -801,6 +799,8 @@ def feedback(
             # Interactive feedback mode
             console.print("\n[cyan]Interactive Feedback Mode[/cyan]")
             
+            # Use variables from outer scope
+            nonlocal agent_type, decision_type
             agent_type = typer.prompt("Agent type", default=agent_type)
             decision_type = typer.prompt("Decision type", default=decision_type)
             
@@ -841,10 +841,10 @@ def feedback(
         )
         
         if success:
-            console.print(f"\n[green]✅ Feedback recorded successfully![/green]")
+            console.print("\n[green]✅ Feedback recorded successfully![/green]")
             console.print("The system will learn from this feedback to make better decisions.")
         else:
-            console.print(f"\n[red]❌ Failed to record feedback[/red]")
+            console.print("\n[red]❌ Failed to record feedback[/red]")
     
     asyncio.run(run_feedback())
 
@@ -867,7 +867,7 @@ def learning_stats():
             return
         
         # Overview
-        console.print(f"\n📈 [bold]Overview:[/bold]")
+        console.print("\n📈 [bold]Overview:[/bold]")
         console.print(f"  Total feedback records: {stats['total_feedback_records']}")
         console.print(f"  Learned patterns: {stats['total_learned_patterns']}")
         console.print(f"  User preferences: {stats['total_user_preferences']}")
@@ -880,13 +880,13 @@ def learning_stats():
         
         # Feedback by agent
         if stats['feedback_by_agent']:
-            console.print(f"\n🤖 [bold]Feedback by Agent:[/bold]")
+            console.print("\n🤖 [bold]Feedback by Agent:[/bold]")
             for agent, count in stats['feedback_by_agent'].items():
                 console.print(f"  {agent}: {count} feedback records")
         
         # Pattern stats
         if stats['pattern_stats']:
-            console.print(f"\n🎯 [bold]Learning Patterns:[/bold]")
+            console.print("\n🎯 [bold]Learning Patterns:[/bold]")
             for pattern_type, pattern_info in stats['pattern_stats'].items():
                 success_rate = pattern_info['avg_success_rate'] * 100
                 color = 'green' if success_rate > 70 else 'yellow' if success_rate > 50 else 'red'
@@ -915,7 +915,7 @@ def export_learning(
         if success:
             console.print(f"[green]✅ Learning data exported successfully to {output_file}[/green]")
         else:
-            console.print(f"[red]❌ Failed to export learning data[/red]")
+            console.print("[red]❌ Failed to export learning data[/red]")
     
     asyncio.run(run_export())
 
@@ -947,7 +947,7 @@ def commitments(
             
             # Display summary
             summary = report_data['summary']
-            console.print(f"\n📊 [bold]Summary:[/bold]")
+            console.print("\n📊 [bold]Summary:[/bold]")
             console.print(f"  Pending commitments: [cyan]{summary['total_pending_commitments']}[/cyan]")
             console.print(f"  Urgent (≤3 days): [red]{summary['urgent_commitments']}[/red]")
             console.print(f"  Overdue commitments: [red]{summary['overdue_commitments']}[/red]")
@@ -963,25 +963,25 @@ def commitments(
                     'heavy': 'orange', 'overwhelming': 'red'
                 }.get(insights.get('workload_assessment', 'moderate'), 'yellow')
                 
-                console.print(f"\n🧠 [bold]AI Insights:[/bold]")
+                console.print("\n🧠 [bold]AI Insights:[/bold]")
                 console.print(f"  Workload: [{workload_color}]{insights.get('workload_assessment', 'moderate')}[/{workload_color}]")
                 console.print(f"  Time management score: {insights.get('time_management_score', 'N/A')}/10")
                 
                 if insights.get('priority_recommendations'):
-                    console.print(f"\n💡 [bold]Priority Recommendations:[/bold]")
+                    console.print("\n💡 [bold]Priority Recommendations:[/bold]")
                     for rec in insights['priority_recommendations'][:3]:
                         console.print(f"  • {rec}")
             
             # Due today
             if report_data['timeframe_breakdown']['due_today']:
-                console.print(f"\n🔴 [bold]Due Today:[/bold]")
+                console.print("\n🔴 [bold]Due Today:[/bold]")
                 for item in report_data['timeframe_breakdown']['due_today']:
                     console.print(f"  • {item['description'][:70]}...")
                     console.print(f"    To: {item.get('committed_to', 'Unknown')}")
             
             # Due this week
             if report_data['timeframe_breakdown']['due_this_week']:
-                console.print(f"\n🟡 [bold]Due This Week:[/bold]")
+                console.print("\n🟡 [bold]Due This Week:[/bold]")
                 for item in report_data['timeframe_breakdown']['due_this_week'][:5]:
                     days_str = f"({item['days_remaining']} days)" if item['days_remaining'] else ""
                     console.print(f"  • {item['description'][:70]}... {days_str}")
@@ -989,13 +989,13 @@ def commitments(
             # Overdue items
             overdue_items = report_data['overdue_items']
             if overdue_items['overdue_commitments']:
-                console.print(f"\n❌ [bold]Overdue Commitments:[/bold]")
+                console.print("\n❌ [bold]Overdue Commitments:[/bold]")
                 for item in overdue_items['overdue_commitments'][:5]:
                     console.print(f"  • {item['description'][:60]}... ({item['days_overdue']} days overdue)")
                     console.print(f"    To: {item.get('committed_to', 'Unknown')}")
             
             if overdue_items['overdue_waiting']:
-                console.print(f"\n⏰ [bold]Overdue Waiting Items:[/bold]")
+                console.print("\n⏰ [bold]Overdue Waiting Items:[/bold]")
                 for item in overdue_items['overdue_waiting'][:5]:
                     console.print(f"  • {item['description'][:60]}... ({item['days_overdue']} days overdue)")
                     console.print(f"    From: {item.get('waiting_from', 'Unknown')}")
@@ -1058,7 +1058,7 @@ def commitments(
         # Show statistics
         stats = await tracker.get_commitment_stats()
         if "error" not in stats:
-            console.print(f"\n📈 [bold]Statistics:[/bold]")
+            console.print("\n📈 [bold]Statistics:[/bold]")
             console.print(f"  Total tracked: {stats['total_commitments']} commitments, {stats['total_waiting_items']} waiting items")
             console.print(f"  Completion rate: {stats['completion_rate']:.1f}%")
             console.print(f"  Recent activity: {stats['recent_commitments_7days']} new commitments (7 days)")

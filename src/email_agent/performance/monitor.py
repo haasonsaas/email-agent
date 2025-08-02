@@ -227,7 +227,7 @@ class PerformanceMonitor:
                         result = await func(*args, **kwargs)
                         self.metrics.increment_counter(f"{operation_name}_success")
                         return result
-                    except Exception as e:
+                    except Exception:
                         self.metrics.increment_counter(f"{operation_name}_error")
                         raise
                     finally:
@@ -242,7 +242,7 @@ class PerformanceMonitor:
                         result = func(*args, **kwargs)
                         self.metrics.increment_counter(f"{operation_name}_success")
                         return result
-                    except Exception as e:
+                    except Exception:
                         self.metrics.increment_counter(f"{operation_name}_error")
                         raise
                     finally:
@@ -260,7 +260,7 @@ class PerformanceMonitor:
         try:
             yield
             self.metrics.increment_counter(f"{operation_name}_success")
-        except Exception as e:
+        except Exception:
             self.metrics.increment_counter(f"{operation_name}_error")
             raise
         finally:

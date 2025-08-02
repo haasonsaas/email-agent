@@ -230,7 +230,6 @@ Content: {body_preview}
             return {}
         
         # Response pattern analysis
-        response_patterns = []
         participant_activity = defaultdict(int)
         
         for email in emails:
@@ -362,7 +361,7 @@ Content: {body_preview}
             return "unknown"
         
         # Analyze subjects and content for patterns
-        subjects = [email.subject.lower() for email in emails]
+        [email.subject.lower() for email in emails]
         all_text = " ".join([f"{email.subject} {email.body_text or ''}" for email in emails]).lower()
         
         # Support ticket indicators

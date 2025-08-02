@@ -1,7 +1,6 @@
 """Built-in rules inspired by Gmail's categorization system."""
 
 import re
-from datetime import datetime
 from typing import List
 
 from ..models import EmailRule, RuleCondition, EmailCategory, EmailPriority

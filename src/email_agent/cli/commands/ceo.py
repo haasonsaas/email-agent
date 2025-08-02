@@ -2,8 +2,6 @@
 
 import asyncio
 import json
-from datetime import datetime
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -25,7 +23,6 @@ from ...connectors.gmail_service import GmailService
 console = Console()
 
 
-import typer
 
 app = typer.Typer(help="CEO-focused email management commands")
 
@@ -190,7 +187,7 @@ async def _setup_labels():
         else:
             existing += 1
     
-    console.print(f"\n[bold green]Summary:[/bold green]")
+    console.print("\n[bold green]Summary:[/bold green]")
     console.print(f"  • Created: [green]{created}[/green] new labels")
     console.print(f"  • Existing: [yellow]{existing}[/yellow] labels already present")
     console.print(f"  • Total: [cyan]{len(CEO_LABELS)}[/cyan] labels available")
@@ -254,7 +251,7 @@ async def _label_emails(limit: int, dry_run: bool):
             if e.tags:
                 try:
                     tags = json.loads(e.tags) if isinstance(e.tags, str) else e.tags
-                except:
+                except Exception:
                     tags = []
             
             email = Email(
@@ -356,12 +353,12 @@ async def _label_emails(limit: int, dry_run: bool):
                                         userId='me', id=gmail_msg_id, body=body
                                     ).execute()
                                     stats['labeled'] += 1
-                        except:
+                        except Exception:
                             stats['not_found'] += 1
                     
                     # Show progress
                     if all_labels:
-                        label_str = ', '.join(l.replace('CEO/', '').replace('Actions/', '') for l in all_labels[:3])
+                        label_str = ', '.join(label.replace('CEO/', '').replace('Actions/', '') for label in all_labels[:3])
                         if len(all_labels) > 3:
                             label_str += f' +{len(all_labels)-3}'
                         color = 'yellow' if dry_run else 'green'
@@ -475,9 +472,9 @@ async def _analyze_labels():
                             'subject': headers.get('Subject', 'No Subject'),
                             'from': headers.get('From', 'Unknown')
                         })
-                    except:
+                    except Exception:
                         pass
-        except:
+        except Exception:
             pass
     
     # Display results
@@ -523,8 +520,7 @@ async def _pull_emails(days: int, max_emails: int):
     """Pull emails from Gmail."""
     console.print(f"[bold cyan]📥 Pulling emails from last {days} days[/bold cyan]\n")
     
-    from ...connectors.gmail import GmailConnector
-    db = DatabaseManager()
+    DatabaseManager()
     
     # Initialize Gmail connector
     import keyring
@@ -533,7 +529,7 @@ async def _pull_emails(days: int, max_emails: int):
         console.print("[red]❌ No Gmail credentials found. Run 'email-agent config gmail' first.[/red]")
         return
     
-    creds_data = json.loads(creds_json)
+    json.loads(creds_json)
     
     # Note: This is a simplified version. In production, you'd want to implement
     # proper pagination and batch processing as shown in the original pull_gmail_directly.py
@@ -666,7 +662,7 @@ async def _apply_intelligence(limit: int, dry_run: bool):
                                         userId='me', id=gmail_msg_id, body=body
                                     ).execute()
                                     stats['labeled'] += 1
-                        except:
+                        except Exception:
                             stats['gmail_errors'] += 1
                     
                     # Show intelligent insights
@@ -687,7 +683,7 @@ async def _apply_intelligence(limit: int, dry_run: bool):
             progress.advance(task)
     
     # Display results
-    console.print(f"\n[bold green]✅ Enhanced Intelligence Processing Complete![/bold green]\n")
+    console.print("\n[bold green]✅ Enhanced Intelligence Processing Complete![/bold green]\n")
     
     console.print("[bold]📊 Enhanced Results:[/bold]")
     console.print(f"  • Processed with intelligence: {stats['processed']}")
@@ -747,7 +743,7 @@ async def _analyze_relationships(limit: int):
     analysis_results = await relationship_intel.analyze_relationships(emails)
     
     # Display results
-    console.print(f"\n[bold]📊 Relationship Analysis Results:[/bold]")
+    console.print("\n[bold]📊 Relationship Analysis Results:[/bold]")
     console.print(f"  • Total contacts analyzed: {analysis_results['total_contacts']}")
     console.print(f"  • Strategic contacts identified: [yellow]{analysis_results['strategic_contacts']}[/yellow]")
     
@@ -818,7 +814,7 @@ async def _analyze_threads(limit: int):
     analysis_results = await thread_intel.analyze_thread_patterns(emails)
     
     # Display results
-    console.print(f"\n[bold]📊 Thread Analysis Results:[/bold]")
+    console.print("\n[bold]📊 Thread Analysis Results:[/bold]")
     console.print(f"  • Total threads: {analysis_results['total_threads']}")
     console.print(f"  • Active threads: [green]{analysis_results['active_threads']}[/green]")
     console.print(f"  • Critical threads: [red]{analysis_results['critical_threads']}[/red]")
@@ -868,7 +864,7 @@ async def _collaborative_processing(limit: int, dry_run: bool, show_reasoning: b
             return
         
         credentials = json.loads(creds_json)
-        gmail_service = GmailService(credentials)
+        GmailService(credentials)
         
         # Get emails from Gmail using database (like other CEO commands)
         with console.status("[bold blue]📧 Fetching emails from database..."):
@@ -1002,7 +998,7 @@ async def _collaborative_processing(limit: int, dry_run: bool, show_reasoning: b
                 console.print(f"[red]❌ Failed to initialize Gmail service for labeling: {e}[/red]")
         
         elif dry_run:
-            console.print(f"\n[yellow]🧪 Dry run complete - no labels were applied[/yellow]")
+            console.print("\n[yellow]🧪 Dry run complete - no labels were applied[/yellow]")
         
     except Exception as e:
         console.print(f"[red]❌ Collaborative processing failed: {e}[/red]")
@@ -1092,7 +1088,7 @@ async def _display_collaborative_summary(results: list, dry_run: bool):
         from collections import Counter
         label_counts = Counter(all_labels)
         
-        console.print(f"\n[bold]🏷️  Most Applied Labels:[/bold]")
+        console.print("\n[bold]🏷️  Most Applied Labels:[/bold]")
         for label, count in label_counts.most_common(10):
             console.print(f"  • {label}: {count} emails")
     
@@ -1115,7 +1111,7 @@ async def _process_inbox_batched(dry_run: bool, show_progress: bool, max_emails:
     ))
     
     # Initialize components
-    console.print(f"\n[bold]Initializing Optimized Batch Processing...[/bold]")
+    console.print("\n[bold]Initializing Optimized Batch Processing...[/bold]")
     console.print(f"[dim]Max emails: {max_emails} | Batch size: {batch_size} (optimized)[/dim]")
     
     try:
@@ -1319,7 +1315,7 @@ async def _apply_collaborative_labels(credentials: dict, db: DatabaseManager, la
 async def _display_inbox_processing_summary(stats: dict, dry_run: bool, total_batches: int):
     """Display comprehensive summary of inbox processing."""
     
-    console.print(f"\n[bold green]📊 Inbox Processing Complete![/bold green]")
+    console.print("\n[bold green]📊 Inbox Processing Complete![/bold green]")
     
     # Processing statistics
     processing_table = Table(title="Processing Statistics")
@@ -1340,7 +1336,7 @@ async def _display_inbox_processing_summary(stats: dict, dry_run: bool, total_ba
     
     # Priority distribution
     if stats['priority_distribution']:
-        console.print(f"\n[bold]🎯 Priority Distribution:[/bold]")
+        console.print("\n[bold]🎯 Priority Distribution:[/bold]")
         for priority, count in stats['priority_distribution'].items():
             percentage = count / stats['total_processed'] * 100 if stats['total_processed'] > 0 else 0
             color = {"critical": "red", "high": "yellow", "medium": "cyan", "low": "green"}.get(priority, "white")
@@ -1348,7 +1344,7 @@ async def _display_inbox_processing_summary(stats: dict, dry_run: bool, total_ba
     
     # Confidence distribution
     if stats['confidence_distribution']:
-        console.print(f"\n[bold]🤝 Agent Confidence Distribution:[/bold]")
+        console.print("\n[bold]🤝 Agent Confidence Distribution:[/bold]")
         for confidence, count in stats['confidence_distribution'].items():
             percentage = count / stats['total_processed'] * 100 if stats['total_processed'] > 0 else 0
             color = {"high": "green", "medium": "yellow", "low": "red"}.get(confidence, "white")
@@ -1356,7 +1352,7 @@ async def _display_inbox_processing_summary(stats: dict, dry_run: bool, total_ba
     
     # Most applied labels
     if stats['label_counts']:
-        console.print(f"\n[bold]🏷️  Most Applied Labels:[/bold]")
+        console.print("\n[bold]🏷️  Most Applied Labels:[/bold]")
         sorted_labels = sorted(stats['label_counts'].items(), key=lambda x: x[1], reverse=True)
         for label, count in sorted_labels[:10]:
             console.print(f"  • {label}: {count} emails")
@@ -1368,4 +1364,4 @@ async def _display_inbox_processing_summary(stats: dict, dry_run: bool, total_ba
     if stats['total_conflicts'] > 0:
         console.print(f"[yellow]⚖️  {stats['total_conflicts']} agent conflicts successfully resolved through collaboration[/yellow]")
     
-    console.print(f"\n[bold cyan]🧠 The collaborative agents worked together to intelligently process your entire inbox![/bold cyan]")
+    console.print("\n[bold cyan]🧠 The collaborative agents worked together to intelligently process your entire inbox![/bold cyan]")

@@ -1,6 +1,5 @@
 """Main TUI application using Textual."""
 
-import asyncio
 import logging
 from datetime import datetime, timedelta
 from typing import List, Optional
@@ -10,15 +9,14 @@ from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal, Vertical
 from textual.widgets import (
     Button, DataTable, Footer, Header, Input, Label, 
-    Placeholder, RichLog, Static, TabbedContent, TabPane,
-    Select, Switch, TextArea, ProgressBar, OptionList
+    RichLog, TabbedContent, TabPane,
+    Select, Switch
 )
 from textual.screen import ModalScreen
 from textual.reactive import reactive
-from textual.message import Message
 
 from ..storage import DatabaseManager
-from ..models import Email, EmailCategory
+from ..models import Email
 from ..agents import EmailAgentCrew
 
 logger = logging.getLogger(__name__)
@@ -86,11 +84,11 @@ class EmailDetails(RichLog):
             self.write(f"[bold cyan]Tags:[/bold cyan] {', '.join(email.tags)}")
         
         if email.summary:
-            self.write(f"\n[bold green]AI Summary:[/bold green]")
+            self.write("\n[bold green]AI Summary:[/bold green]")
             self.write(f"[dim]{email.summary}[/dim]")
         
         if email.action_items:
-            self.write(f"\n[bold yellow]Action Items:[/bold yellow]")
+            self.write("\n[bold yellow]Action Items:[/bold yellow]")
             for item in email.action_items:
                 self.write(f"• {item}")
         
@@ -223,7 +221,7 @@ class FeedbackDialog(ModalScreen):
     
     def compose(self) -> ComposeResult:
         with Container(id="feedback-dialog"):
-            yield Label(f"🎯 Provide Feedback for Email", classes="dialog-title")
+            yield Label("🎯 Provide Feedback for Email", classes="dialog-title")
             yield Label("")
             yield Label(f"Subject: {self.email.subject[:60]}...")
             yield Label(f"From: {self.email.sender.email}")
@@ -518,7 +516,7 @@ class TUILogHandler(logging.Handler):
                 if hasattr(self.tui_app, 'query_one'):
                     log_viewer = self.tui_app.query_one("#app-logs-display", RichLog)
                     log_viewer.write(msg)
-            except:
+            except Exception:
                 pass  # TUI might not be ready or log viewer not visible
                 
         except Exception:
@@ -995,7 +993,7 @@ class EmailAgentTUI(App):
                 try:
                     drafts_panel = self.query_one(DraftSuggestionsPanel)
                     drafts_panel.update_current_email(selected_email)
-                except:
+                except Exception:
                     pass  # Panel might not be visible
                 
                 # Switch to details tab
@@ -1067,8 +1065,8 @@ class EmailAgentTUI(App):
         elif event.button.id == "full-insights-btn":
             await self.action_show_full_insights()
     
-    async def refresh_data(self) -> None:
-        """Refresh email data from database."""
+    async def refresh_data_alt(self) -> None:
+        """Alternative refresh email data from database."""
         try:
             # Load emails
             self.current_emails = self.db.get_emails(limit=100)
@@ -1348,7 +1346,7 @@ class EmailAgentTUI(App):
             try:
                 dashboard = self.query_one(AnalyticsDashboard)
                 dashboard.update_analytics(analytics_data)
-            except:
+            except Exception:
                 pass  # Dashboard might not be visible
             
             self.notify("Analytics refreshed!", timeout=3)
@@ -1375,7 +1373,7 @@ class EmailAgentTUI(App):
                 return
             
             # Generate comprehensive analysis report
-            analysis_prompt = f"""
+            f"""
 Generate a comprehensive email analysis report based on {len(emails)} emails.
 
 Categories: {stats.get('categories', {})}
@@ -1402,7 +1400,7 @@ Provide insights on:
             
             # Get email stats before cleanup
             before_stats = self.db.get_email_stats()
-            before_count = before_stats.get("total", 0)
+            before_stats.get("total", 0)
             
             # Simple cleanup: remove emails older than 90 days without summaries
             from datetime import timedelta
@@ -1454,17 +1452,17 @@ Provide insights on:
                 
                 if "sentiment_distribution" in sentiment_data:
                     dist = sentiment_data["sentiment_distribution"]
-                    insights_log.write(f"📊 Sentiment Distribution:")
+                    insights_log.write("📊 Sentiment Distribution:")
                     insights_log.write(f"  Positive: {dist.get('positive', 0)}")
                     insights_log.write(f"  Negative: {dist.get('negative', 0)}")
                     insights_log.write(f"  Neutral: {dist.get('neutral', 0)}")
                 
                 if "recommendations" in sentiment_data:
-                    insights_log.write(f"\\n💡 Recommendations:")
+                    insights_log.write("\\n💡 Recommendations:")
                     for rec in sentiment_data["recommendations"][:5]:
                         insights_log.write(f"  {rec}")
                         
-            except:
+            except Exception:
                 pass  # Dashboard might not be visible
             
             self.notify("Sentiment analysis completed!", timeout=5)
@@ -1498,7 +1496,7 @@ Provide insights on:
                 insights_log.clear()
                 
                 threads = thread_data.get("threads", [])
-                insights_log.write(f"🧵 Thread Analysis Results:")
+                insights_log.write("🧵 Thread Analysis Results:")
                 insights_log.write(f"  Total threads found: {len(threads)}")
                 
                 for i, thread in enumerate(threads[:3]):  # Show top 3
@@ -1508,7 +1506,7 @@ Provide insights on:
                     insights_log.write(f"    Type: {thread.get('conversation_type', 'unknown')}")
                     insights_log.write(f"    Status: {thread.get('resolution_status', 'unknown')}")
                         
-            except:
+            except Exception:
                 pass
             
             self.notify(f"Thread analysis completed! Found {len(thread_data.get('threads', []))} threads", timeout=5)
@@ -1542,14 +1540,14 @@ Provide insights on:
                 insights_log = self.query_one("#ai-insights-log", RichLog)
                 insights_log.clear()
                 
-                insights_log.write(f"🔍 Comprehensive Analysis Results:")
+                insights_log.write("🔍 Comprehensive Analysis Results:")
                 insights_log.write(f"  Emails analyzed: {analysis_data.get('email_count', 0)}")
                 insights_log.write(f"  Categories found: {analysis_data.get('summary', {}).get('categories_found', 0)}")
                 
                 # Sentiment insights
                 sentiment = analysis_data.get("sentiment_insights", {})
                 if sentiment:
-                    insights_log.write(f"\\n😊 Sentiment Insights:")
+                    insights_log.write("\\n😊 Sentiment Insights:")
                     insights_log.write(f"  Total analyzed: {sentiment.get('total_analyzed', 0)}")
                     dist = sentiment.get("sentiment_distribution", {})
                     insights_log.write(f"  Positive: {dist.get('positive', 0)}")
@@ -1558,17 +1556,17 @@ Provide insights on:
                 # Thread insights
                 thread_analysis = analysis_data.get("thread_analysis", {})
                 if thread_analysis:
-                    insights_log.write(f"\\n🧵 Thread Insights:")
+                    insights_log.write("\\n🧵 Thread Insights:")
                     insights_log.write(f"  Threads found: {thread_analysis.get('threads_found', 0)}")
                 
                 # Priority distribution
                 priority_dist = analysis_data.get("summary", {}).get("priority_distribution", {})
                 if priority_dist:
-                    insights_log.write(f"\\n⚡ Priority Distribution:")
+                    insights_log.write("\\n⚡ Priority Distribution:")
                     for priority, count in priority_dist.items():
                         insights_log.write(f"  {priority.title()}: {count}")
                         
-            except:
+            except Exception:
                 pass
             
             self.notify("Comprehensive analysis completed!", timeout=5)
@@ -1604,7 +1602,7 @@ Provide insights on:
             try:
                 sidebar = self.query_one(StatsSidebar)
                 sidebar.update_triage_stats(smart_inbox_results.get("stats", {}))
-            except:
+            except Exception:
                 pass
             
             # Update smart inbox view
@@ -1620,7 +1618,7 @@ Provide insights on:
                 # Update current emails for selection
                 self.current_emails = priority_emails
                 
-            except:
+            except Exception:
                 pass
             
             self.notify(f"Smart triage completed! Found {smart_inbox_results.get('stats', {}).get('priority_count', 0)} priority emails", timeout=5)
@@ -1741,7 +1739,7 @@ Provide insights on:
             try:
                 drafts_panel = self.query_one(DraftSuggestionsPanel)
                 drafts_panel.update_writing_style_status(style_results.get("style_summary", {}))
-            except:
+            except Exception:
                 pass
             
             formality = style_results.get("formality_score", 0.5)
@@ -1770,7 +1768,7 @@ Provide insights on:
             try:
                 num_drafts_select = self.query_one("#num-drafts-select", Select)
                 num_suggestions = int(num_drafts_select.value)
-            except:
+            except Exception:
                 num_suggestions = 3
             
             # Generate drafts
@@ -1785,7 +1783,7 @@ Provide insights on:
             try:
                 drafts_panel = self.query_one(DraftSuggestionsPanel)
                 drafts_panel.show_draft_suggestions(draft_results.get("suggestions", []))
-            except:
+            except Exception:
                 pass
             
             # Switch to drafts tab
@@ -1817,7 +1815,7 @@ Provide insights on:
                     target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
                 else:
                     target_date = datetime.now().date()
-            except:
+            except Exception:
                 target_date = datetime.now().date()
             
             # Get emails for the date
@@ -1844,7 +1842,7 @@ Provide insights on:
                 brief_panel = self.query_one(NarrativeBriefPanel)
                 brief_panel.show_narrative_brief(brief_results.get("brief", {}))
                 brief_panel.update_brief_metrics(brief_results.get("brief", {}))
-            except:
+            except Exception:
                 pass
             
             # Switch to narrative brief tab
@@ -1998,7 +1996,7 @@ Provide insights on:
             
             # Learning statistics
             learning_stats = insights.get("learning_stats", {})
-            log_display.write(f"\n[bold]📊 Learning Statistics:[/bold]")
+            log_display.write("\n[bold]📊 Learning Statistics:[/bold]")
             log_display.write(f"• Total feedback received: {learning_stats.get('total_feedback_received', 0)}")
             log_display.write(f"• Learning active: {'✅ Yes' if learning_stats.get('learning_active') else '❌ No'}")
             if learning_stats.get("last_feedback"):
@@ -2007,7 +2005,7 @@ Provide insights on:
             # Sender insights
             sender_insights = insights.get("sender_insights", {})
             if sender_insights:
-                log_display.write(f"\n[bold]👥 Sender Insights:[/bold]")
+                log_display.write("\n[bold]👥 Sender Insights:[/bold]")
                 log_display.write(f"• Total senders learned: {sender_insights.get('total_senders_learned', 0)}")
                 
                 if sender_insights.get("most_important"):
@@ -2023,7 +2021,7 @@ Provide insights on:
             # Category insights
             category_insights = insights.get("category_insights", {})
             if category_insights:
-                log_display.write(f"\n[bold]📂 Category Learning:[/bold]")
+                log_display.write("\n[bold]📂 Category Learning:[/bold]")
                 for category, prefs in category_insights.items():
                     log_display.write(f"• {category}:")
                     log_display.write(f"  - Priority tendency: {prefs.get('priority_tendency', 0.0):.2f}")
@@ -2033,7 +2031,7 @@ Provide insights on:
             # Urgency insights
             urgency_insights = insights.get("urgency_insights", {})
             if urgency_insights:
-                log_display.write(f"\n[bold]⚡ Urgency Learning:[/bold]")
+                log_display.write("\n[bold]⚡ Urgency Learning:[/bold]")
                 
                 learned_keywords = urgency_insights.get("learned_urgency_keywords", [])
                 if learned_keywords:
@@ -2050,7 +2048,7 @@ Provide insights on:
             # Time insights
             time_insights = insights.get("time_insights", {})
             if time_insights:
-                log_display.write(f"\n[bold]🕒 Time-based Learning:[/bold]")
+                log_display.write("\n[bold]🕒 Time-based Learning:[/bold]")
                 
                 priority_hours = time_insights.get("priority_hours", {})
                 if priority_hours:

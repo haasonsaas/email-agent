@@ -1,18 +1,14 @@
 """CLI commands for AI draft suggestions."""
 
 import asyncio
-import json
-from typing import Optional, List
 
 import typer
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
-from rich.text import Text
 
 from ...agents.crew import EmailAgentCrew
 from ...storage.database import DatabaseManager
-from ...models import Email
 
 console = Console()
 app = typer.Typer()

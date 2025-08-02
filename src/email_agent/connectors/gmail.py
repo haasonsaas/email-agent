@@ -4,8 +4,6 @@ import base64
 import email
 import json
 from datetime import datetime, timezone
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 from typing import Any, Dict, List, Optional
 
 import keyring

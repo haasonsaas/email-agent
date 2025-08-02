@@ -2,11 +2,10 @@
 
 import re
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from ..models import Email, EmailRule, EmailCategory, EmailPriority, RuleCondition
 from ..sdk.base import BaseRule
-from ..sdk.exceptions import RuleError
 
 logger = logging.getLogger(__name__)
 

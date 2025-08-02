@@ -1,13 +1,11 @@
 """CLI commands for smart inbox and triage management."""
 
 import asyncio
-from datetime import datetime
-from typing import Dict, List
+from typing import List
 
 import typer
 from rich.console import Console
 from rich.table import Table
-from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from ...agents.crew import EmailAgentCrew
@@ -273,7 +271,7 @@ async def _show_learning_insights():
         
         # Learning statistics
         learning_stats = insights.get("learning_stats", {})
-        console.print(f"\n📊 Learning Statistics:")
+        console.print("\n📊 Learning Statistics:")
         console.print(f"   Total feedback received: {learning_stats.get('total_feedback_received', 0)}")
         console.print(f"   Learning active: {'✅ Yes' if learning_stats.get('learning_active') else '❌ No'}")
         
@@ -283,7 +281,7 @@ async def _show_learning_insights():
         # Sender insights
         sender_insights = insights.get("sender_insights", {})
         if sender_insights.get("most_important"):
-            console.print(f"\n👥 Most Important Senders:")
+            console.print("\n👥 Most Important Senders:")
             most_important = sender_insights["most_important"]
             
             sender_table = Table()
@@ -298,7 +296,7 @@ async def _show_learning_insights():
         # Category insights
         category_insights = insights.get("category_insights", {})
         if category_insights:
-            console.print(f"\n📂 Category Learning:")
+            console.print("\n📂 Category Learning:")
             
             cat_table = Table()
             cat_table.add_column("Category", style="cyan")
@@ -319,7 +317,7 @@ async def _show_learning_insights():
         # Urgency insights
         urgency_insights = insights.get("urgency_insights", {})
         if urgency_insights.get("learned_urgency_keywords"):
-            console.print(f"\n⚡ Learned Urgency Keywords:")
+            console.print("\n⚡ Learned Urgency Keywords:")
             keywords = urgency_insights["learned_urgency_keywords"][:10]
             
             urgency_table = Table()
@@ -334,7 +332,7 @@ async def _show_learning_insights():
         # Time insights
         time_insights = insights.get("time_insights", {})
         if time_insights.get("priority_hours"):
-            console.print(f"\n🕒 Time-based Preferences:")
+            console.print("\n🕒 Time-based Preferences:")
             priority_hours = time_insights["priority_hours"]
             
             # Find peak priority hours
@@ -398,7 +396,7 @@ async def _show_sender_importance():
         console.print(table)
         
         # Show statistics
-        console.print(f"\n📈 Statistics:")
+        console.print("\n📈 Statistics:")
         console.print(f"   Average importance: {sum(sender_scores.values()) / len(sender_scores):.3f}")
         console.print(f"   Highest score: {max(sender_scores.values()):.3f}")
         console.print(f"   Lowest score: {min(sender_scores.values()):.3f}")
